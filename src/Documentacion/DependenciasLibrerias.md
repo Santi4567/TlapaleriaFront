@@ -3,6 +3,7 @@ Tailwind CSS v4.
 React 
 Tauri 
 
+npm install @tauri-apps/api
 
 Iniciar el proyecto de dev 
 

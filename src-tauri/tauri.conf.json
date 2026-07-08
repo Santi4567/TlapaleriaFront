@@ -11,12 +11,15 @@
   },
   "app": {
     "windows": [
-      {
-        "title": "tlapaleofront",
-        "width": 800,
-        "height": 600
-      }
-    ],
+  {
+    "title": "Tlapaleria LEO",
+    "width": 1224,
+    "height": 768,
+    "decorations": false,
+    "resizable": true,
+    "fullscreen": false
+  }
+],
     "security": {
       "csp": null
     }

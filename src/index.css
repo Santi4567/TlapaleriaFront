@@ -1,1 +1,33 @@
+/* src/index.css */
 @import "tailwindcss";
+
+/* Definición de la paleta de colores Tlapaleria LEO (Modo Oscuro Industrial) */
+@theme {
+  --color-brand-deep-dark: #121212;  /* Fondo principal ultra oscuro */
+  --color-brand-panel: #1e1e1e;       /* Fondo del panel de login */
+  --color-brand-orange: #ff6600;      /* Naranja brillante para acentos y botones */
+  --color-brand-orange-hover: #cc5200; /* Naranja más oscuro para hover */
+  --color-brand-text: #e0e0e0;        /* Texto principal gris claro */
+  --color-brand-text-muted: #a0a0a0;  /* Texto secundario gris medio */
+  --color-brand-error: #ef4444;       /* Rojo para mensajes de error */
+}
+
+/* Estilos base para asegurar modo oscuro global */
+@layer base {
+  body {
+    @apply bg-brand-deep-dark text-brand-text antialiased font-sans;
+  }
+}
+
+/* Replicando el estilo de input de la imagen de referencia (solo borde inferior) */
+@layer components {
+  .login-input {
+    @apply w-full bg-transparent border-b-2 border-brand-text-muted py-3 text-brand-text placeholder:text-brand-text-muted transition-colors;
+    @apply focus:outline-none focus:border-brand-orange;
+  }
+
+  /* Estilo para los mensajes de error de validación debajo del input */
+  .field-error {
+    @apply text-brand-error text-xs mt-1;
+  }
+}
