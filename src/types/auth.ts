@@ -8,8 +8,15 @@ export interface LoginRequest {
 
 // Datos del usuario dentro de una respuesta exitosa
 export interface UserData {
-  usuario: string;
-  token: string;
+  usuario: string; // El que viene del login
+  token: string;   // El que viene del login
+  
+  // Propiedades del perfil (Opcionales al inicio, se llenan después)
+  id?: number;
+  username?: string;
+  name?: string;
+  rol?: string;
+  permisos?: Permisos;
 }
 
 // Respuesta Exitosa (200)
@@ -38,5 +45,24 @@ export interface ValidationErrorResponse {
   traceId: string;
 }
 
+export interface Permisos {
+  USERS?: string[];
+  PRODUCTS?: string[];
+  RESET_PASSWORD?: string[];
+  SUPPLIERS?: string[];
+  PENDINGORDERS?: string[];
+  INVENTORYMOVEMENTS?: string[];
+  RETURNS?: string[];
+  SALES?: string[];
+}
+
+export interface User {
+  id: number;
+  username: string;
+  name: string;
+  rol: string;
+  permisos: Permisos;
+}
+
 // Tipo de unión para manejar la respuesta cruda de la API
-export type APIAuthResponse = LoginSuccessResponse | LoginAuthErrorResponse | ValidationErrorResponse;
+export type APIAuthResponse = LoginSuccessResponse | LoginAuthErrorResponse | ValidationErrorResponse | Permisos | User;

@@ -30,10 +30,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.login(credentials);
 
       // 1. Manejo de Éxito (success: true)
-      if ('success' in response && response.success) {
-        setUser(response.data); // Guardamos usuario y token en memoria
-        console.log("Login exitoso Tlapaleria LEO");
-        return true;
+      if ('success' in response && response.success && response.data) {
+        
+        // Extraemos lo básico que nos dio el primer endpoint
+        const token = response.data.token;
+        const usuario = response.data.usuario;
+
+        // AHORA SÍ: Pedimos los datos completos del perfil usando el token
+        const profileResponse = await authService.getProfile(token);
+
+        if (profileResponse && profileResponse.success) {
+          // Fusionamos la información
+          const fullUserData: UserData = {
+            usuario: usuario,
+            token: token,
+            id: profileResponse.data.id,
+            name: profileResponse.data.name,
+            rol: profileResponse.data.rol,
+            permisos: profileResponse.data.permisos
+          };
+
+          setUser(fullUserData); // Guardamos usuario completo en memoria
+          console.log("Login y carga de perfil exitosos en Tlapaleria LEO");
+          return true;
+        } else {
+          setAuthError("No se pudieron verificar los permisos del usuario.");
+          return false;
+        }
       }
 
       // 2. Manejo de Error de Validación (status: 400)
