@@ -2,42 +2,39 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 
-// Definimos las vistas disponibles en el ERP
-type View = 'POS' | 'PRODUCTS' | 'SUPPLIERS' | 'INVENTORY' | 'FINANCE';
+// Importamos todas las páginas
+import HomeScreen from '../pages/HomeScreen';
+import PosScreen from '../pages/PosScreen';
+import ProductsScreen from '../pages/ProductsScreen';
+import SuppliersScreen from '../pages/SuppliersScreen';
+import PendingOrdersScreen from '../pages/PendingOrdersScreen';
+import InventoryScreen from '../pages/InventoryScreen';
+import FinanceScreen from '../pages/FinanceScreen';
+import UserScreen from '../pages/UserScreen';
 
 const MainLayout: React.FC = () => {
-  // Estado para controlar qué pantalla se está mostrando actualmente
-  const [currentView, setCurrentView] = useState<View>('POS');
+  // Ahora la vista por defecto al iniciar sesión es el Dashboard (HOME)
+  const [currentView, setCurrentView] = useState('HOME');
+
+  const renderView = () => {
+    switch (currentView) {
+      case 'HOME': return <HomeScreen />;
+      case 'POS': return <PosScreen />;
+      case 'PRODUCTS': return <ProductsScreen />;
+      case 'SUPPLIERS': return <SuppliersScreen />;
+      case 'PENDING': return <PendingOrdersScreen />;
+      case 'INVENTORY': return <InventoryScreen />;
+      case 'FINANCE': return <FinanceScreen />;
+      case 'USER': return <UserScreen />;
+      default: return <HomeScreen />;
+    }
+  };
 
   return (
-    <div className="flex flex-1 w-full h-full bg-[#0a0a0a]">
-      
-      {/* Navegación Lateral Dinámica */}
-      {/* Podríamos pasarle setCurrentView al Sidebar para que cambie la vista al hacer clic */}
-      <Sidebar />
-
-      {/* Área Central Dinámica */}
-      <div className="flex-1 p-6 overflow-hidden flex flex-col relative">
-        
-        {/* Aquí es donde ocurrirá la magia: Dependiendo de currentView, renderizamos un componente distinto */}
-        {currentView === 'POS' && (
-          <div className="h-full flex flex-col">
-            <header className="flex items-center justify-between pb-4 border-b border-gray-800 mb-6 flex-shrink-0">
-              <h1 className="text-2xl font-bold text-brand-text">Punto de Venta</h1>
-            </header>
-            <div className="flex-1 w-full border border-dashed border-gray-700 rounded-2xl flex items-center justify-center text-gray-500">
-               Componente PosScreen.tsx irá aquí
-            </div>
-          </div>
-        )}
-
-        {currentView === 'PRODUCTS' && (
-          <div className="h-full text-white">
-            <h1 className="text-2xl font-bold mb-6">Catálogo de Productos</h1>
-            {/* Componente ProductsScreen.tsx irá aquí */}
-          </div>
-        )}
-
+    <div className="flex flex-1 w-full h-full bg-[#050505] overflow-hidden"> 
+      <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+      <div className="flex-1 p-4 pl-0 flex flex-col relative overflow-hidden">
+         {renderView()}
       </div>
     </div>
   );
