@@ -8,9 +8,12 @@ interface SupplierTableProps {
   error: string | null;
   isActiveFilter: boolean;
   searchTerm: string;
+  currentPage: number; // NUEVO
+  totalPages: number;  // NUEVO
+  onPageChange: (newPage: number) => void; // NUEVO
   onRetry: () => void;
   onClearSearch: () => void;
-  onEdit: (supplier: Supplier) => void; // Declarado en la interfaz
+  onEdit: (supplier: Supplier) => void;
 }
 
 const SupplierTable: React.FC<SupplierTableProps> = ({ 
@@ -19,9 +22,12 @@ const SupplierTable: React.FC<SupplierTableProps> = ({
   error, 
   isActiveFilter, 
   searchTerm, 
+  currentPage,
+  totalPages,
+  onPageChange,
   onRetry, 
   onClearSearch,
-  onEdit // ¡ESTO ERA LO QUE FALTABA EXTRAER AQUÍ!
+  onEdit 
 }) => {
   return (
     <div className="flex-1 overflow-hidden border border-gray-800 rounded-2xl bg-[#1a1a1a] flex flex-col relative">
@@ -88,7 +94,6 @@ const SupplierTable: React.FC<SupplierTableProps> = ({
                     )}
                   </td>
                   <td className="px-6 py-5 text-center sticky right-0 bg-[#1a1a1a] border-l border-gray-800 group-hover:bg-[#1f1f1f] transition-colors">
-                    {/* AHORA SÍ CONECTAMOS EL onEdit CORRECTAMENTE */}
                     <button 
                       onClick={() => onEdit(supplier)} 
                       className="text-brand-orange font-bold px-4 py-2 bg-brand-orange/10 rounded-lg hover:bg-brand-orange/20"
@@ -101,6 +106,29 @@ const SupplierTable: React.FC<SupplierTableProps> = ({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* NUEVO: PAGINACIÓN INFERIOR */}
+      <div className="bg-[#121212] px-6 py-5 border-t border-gray-800 flex items-center justify-between flex-shrink-0 relative z-20">
+        <span className="text-base text-gray-400">
+          Página <span className="font-bold text-white text-lg mx-1">{currentPage}</span> de <span className="font-bold text-white text-lg mx-1">{totalPages}</span>
+        </span>
+        <div className="flex space-x-3">
+          <button 
+            disabled={currentPage === 1 || isLoading || error !== null}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="px-4 py-2.5 rounded-lg border border-gray-700 font-bold text-base hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white"
+          >
+            Anterior
+          </button>
+          <button 
+            disabled={currentPage === totalPages || totalPages === 0 || isLoading || error !== null}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="px-4 py-2.5 rounded-lg border border-gray-700 font-bold text-base hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
     </div>
   );
