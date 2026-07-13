@@ -11,6 +11,8 @@ interface ProductTableProps {
   onPageChange: (newPage: number) => void;
   onRetry: () => void;
   onEdit: (product: Product) => void;
+  searchTerm: string;      // NUEVO
+  onClearSearch: () => void; // NUEVO
 }
 
 const ProductTable: React.FC<ProductTableProps> = ({
@@ -21,7 +23,9 @@ const ProductTable: React.FC<ProductTableProps> = ({
   totalPages,
   onPageChange,
   onRetry,
-  onEdit
+  onEdit,
+  searchTerm,
+  onClearSearch
 }) => {
   return (
     <div className="flex-1 overflow-hidden border border-gray-800 rounded-2xl bg-[#1a1a1a] flex flex-col relative">
@@ -40,7 +44,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
           </thead>
           <tbody className="divide-y divide-gray-800">
             
-            {/* ESTADO 1: CARGANDO */}
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="px-6 py-20 text-center">
@@ -53,40 +56,28 @@ const ProductTable: React.FC<ProductTableProps> = ({
                   </div>
                 </td>
               </tr>
-
-            // ESTADO 2: ERROR DE RED
             ) : error ? (
               <tr>
                 <td colSpan={6} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className="p-4 bg-red-500/10 rounded-full text-red-500 mb-2">
-                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-12 h-12">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                       </svg>
-                    </div>
                     <p className="text-white text-xl font-bold">{error}</p>
-                    <button
-                      onClick={onRetry}
-                      className="mt-4 flex items-center px-6 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-xl text-white font-bold transition-all shadow-lg hover:shadow-xl"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 mr-3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                      </svg>
+                    <button onClick={onRetry} className="mt-4 px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-bold">
                       Volver a intentar
                     </button>
                   </div>
                 </td>
               </tr>
-
-            // ESTADO 3: SIN PRODUCTOS
             ) : products.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-20 text-center">
-                   <span className="text-gray-500 text-lg font-medium">No se encontraron productos en esta categoría.</span>
+                   <span className="text-gray-500 text-lg font-medium">No se encontraron productos.</span>
+                   {searchTerm && (
+                      <p className="text-brand-orange mt-2 text-base cursor-pointer hover:underline" onClick={onClearSearch}>
+                        Limpiar búsqueda
+                      </p>
+                   )}
                 </td>
               </tr>
-
-            // ESTADO 4: MOSTRAR DATOS
             ) : (
               products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-800/30 transition-colors group">

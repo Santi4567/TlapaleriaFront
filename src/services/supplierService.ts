@@ -11,7 +11,6 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const supplierService = {
   
-  // ACTUALIZADO: Ahora envía isActive, pageNumber y pageSize al backend
   getSuppliers: async (
     token: string, 
     pageNumber: number = 1, 
@@ -37,15 +36,23 @@ export const supplierService = {
     }
   },
 
-  searchSuppliers: async (token: string, term: string): Promise<APISearchSuppliersResponse | null> => {
+  // ACTUALIZADO: Ahora recibe "isActive" y lo agrega como parámetro GET a la URL de búsqueda
+  searchSuppliers: async (
+    token: string, 
+    term: string, 
+    isActive: boolean = true
+  ): Promise<APISearchSuppliersResponse | null> => {
     try {
-      const response = await fetch(`${API_URL}/Suppliers/search/${encodeURIComponent(term)}`, {
-        method: 'GET',
-        headers: {
-          'accept': 'text/plain',
-          'Authorization': `Bearer ${token}`
+      const response = await fetch(
+        `${API_URL}/Suppliers/search/${encodeURIComponent(term)}?isActive=${isActive}`, 
+        {
+          method: 'GET',
+          headers: {
+            'accept': 'text/plain',
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
       if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       return await response.json();
     } catch (error) {

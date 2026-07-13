@@ -11,17 +11,15 @@ const SuppliersScreen: React.FC = () => {
   
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); 
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState(true);
   
-  // NUEVO: Estados para la paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 10; // 10 por página según tu curl
+  const pageSize = 10; 
   
-  // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -33,19 +31,18 @@ const SuppliersScreen: React.FC = () => {
     setError(null); 
     
     if (term.trim() !== '') {
-      // Si está buscando, usamos el endpoint de búsqueda
-      const response = await supplierService.searchSuppliers(user.token, term);
+      // ACTUALIZADO: Ahora le pasamos isActiveFilter como tercer parámetro al buscador
+      const response = await supplierService.searchSuppliers(user.token, term, isActiveFilter);
       if (response && response.success) {
         setSuppliers(response.data);
-        setTotalPages(1); // La búsqueda rápida devuelve todo en 1 página
+        setTotalPages(1); 
       } else {
         setError("No se pudo conectar con el servidor para buscar.");
       }
     } else {
-      // ACTUALIZADO: Mandamos página, tamaño y filtro al backend
       const response = await supplierService.getSuppliers(user.token, currentPage, pageSize, isActiveFilter);
       if (response && response.success) {
-        setSuppliers(response.data.data); // data.data porque viene dentro del wrapper
+        setSuppliers(response.data.data); 
         setTotalPages(response.data.totalPages);
       } else {
         setError("No se pudo conectar con el servidor.");
@@ -55,7 +52,7 @@ const SuppliersScreen: React.FC = () => {
     setIsLoading(false);
   };
 
-  // ACTUALIZADO: El Debounce ahora también vigila currentPage y isActiveFilter
+  // Nuestro temporizador sigue vigilando searchTerm, currentPage e isActiveFilter
   useEffect(() => {
     if (!user?.token) return;
     const delaySearch = setTimeout(() => {
@@ -102,8 +99,6 @@ const SuppliersScreen: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // YA NO HAY FILTRADO MANUAL: Los datos que llegan ya vienen filtrados del backend
-
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative">
       
@@ -123,7 +118,6 @@ const SuppliersScreen: React.FC = () => {
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          {/* Botones: Al cambiar de pestaña, reiniciamos a la página 1 */}
           <div className="flex bg-black/50 p-1.5 rounded-xl border border-gray-800">
             <button 
               onClick={() => { setIsActiveFilter(true); setCurrentPage(1); }} 
@@ -166,9 +160,9 @@ const SuppliersScreen: React.FC = () => {
         error={error}
         isActiveFilter={isActiveFilter}
         searchTerm={searchTerm}
-        currentPage={currentPage}      // NUEVO
-        totalPages={totalPages}        // NUEVO
-        onPageChange={setCurrentPage}  // NUEVO: Permite a los botones cambiar de página
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
         onRetry={() => fetchSuppliers(searchTerm)}
         onClearSearch={() => { setSearchTerm(''); setCurrentPage(1); }}
         onEdit={handleEditClick}
