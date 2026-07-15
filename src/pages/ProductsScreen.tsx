@@ -23,10 +23,10 @@ const ProductsScreen: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const fetchProducts = async (term: string = '') => {
     if (!user?.token) return;
-    
     setIsLoading(true);
     setError(null); 
     
@@ -47,7 +47,6 @@ const ProductsScreen: React.FC = () => {
         setError("No se pudo conectar con el servidor para cargar el catálogo.");
       }
     }
-    
     setIsLoading(false);
   };
 
@@ -68,6 +67,8 @@ const ProductsScreen: React.FC = () => {
     
     if (res && res.success) {
       setIsCreating(false);
+      setSuccessMessage(`¡Producto "${productData.name}" guardado exitosamente con todas sus variantes!`);
+      setTimeout(() => setSuccessMessage(null), 5000);
       fetchProducts(searchTerm);
     } else {
       setCreateError(res?.message || "Ocurrió un error al registrar el producto en el servidor.");
@@ -82,36 +83,32 @@ const ProductsScreen: React.FC = () => {
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
       
-      {/* ANIMACIÓN CSS REAL QUE NO DEPENDE DE PLUGINS DE TAILWIND */}
-      <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
-        
-        {/* VISTA 1: FORMULARIO DE ALTA (Se desliza suave desde la derecha) */}
-        <div 
-          style={{
-            transition: 'all 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: isCreating ? 'translateX(0%)' : 'translateX(100%)',
-            opacity: isCreating ? 1 : 0,
-            pointerEvents: isCreating ? 'auto' : 'none'
-          }}
-          className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
-        >
-          <ProductCreateForm 
-            onCancel={() => { setIsCreating(false); setCreateError(null); }}
-            onSave={handleSaveProduct}
-            isSubmitting={isSubmitting}
-            error={createError}
-          />
+      {/* BANNER VERDE DE ÉXITO */}
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between z-30 animate-in fade-in slide-in-from-top duration-300 flex-shrink-0">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-3 text-green-500"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            {successMessage}
+          </div>
+          <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-white">✕</button>
         </div>
+      )}
 
-        {/* VISTA 2: CATÁLOGO Y TABLA (Se empuja hacia la izquierda cuando abres el formulario) */}
+      {/* CONTENEDOR CON CERO COLISIONES GRÁFICAS DE TRANSFORM EN REPOSO */}
+      <div className="flex-1 relative w-full h-full overflow-hidden flex flex-col">
+        
+        {/* VISTA 1: CATÁLOGO Y TABLA 
+            CLAVE NUCLEAR: Si NO estamos creando (!isCreating), el style queda en undefined/vacío. 
+            El navegador lo renderiza como DOM nativo puro al 100% de ancho sin capas gráficas que corten el texto.
+        */}
         <div 
-          style={{
+          style={isCreating ? {
             transition: 'all 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: isCreating ? 'translateX(-50%)' : 'translateX(0%)',
-            opacity: isCreating ? 0 : 1,
-            pointerEvents: isCreating ? 'none' : 'auto'
-          }}
-          className="absolute inset-0 w-full h-full flex flex-col z-10"
+            transform: 'translateX(-20%)',
+            opacity: 0,
+            pointerEvents: 'none'
+          } : undefined}
+          className="w-full h-full flex flex-col flex-1 transition-opacity duration-300"
         >
           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 flex-shrink-0 gap-4">
             <div>
@@ -174,7 +171,41 @@ const ProductsScreen: React.FC = () => {
           />
         </div>
 
+        {/* VISTA 2: FORMULARIO DE ALTA 
+            Solo existe en el DOM y aplica físicas gráficas cuando isCreating es true. 
+            Al cerrarse, no deja rastro alguno que pueda estorbar a la tabla.
+        */}
+        {isCreating && (
+          <div 
+            style={{
+              animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards'
+            }}
+            className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
+          >
+            <ProductCreateForm 
+              onCancel={() => { setIsCreating(false); setCreateError(null); }}
+              onSave={handleSaveProduct}
+              isSubmitting={isSubmitting}
+              error={createError}
+            />
+          </div>
+        )}
+
       </div>
+
+      {/* KEYFRAME NATIVO INYECTADO: Para la animación del formulario sin requerir plugins de Tailwind */}
+      <style>{`
+        @keyframes slideInFromRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0%);
+            opacity: 1;
+          }
+        }
+      `}</style>
 
     </div>
   );
