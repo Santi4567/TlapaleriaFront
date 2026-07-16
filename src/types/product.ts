@@ -1,13 +1,25 @@
 // src/types/product.ts
 
+// ==========================================
+// 1. INTERFACES DE LECTURA (Lo que devuelve la API)
+// ==========================================
+
 export interface ProductPresentation {
   id: number;
   productId: number;
   name: string;
-  code: string;
+  code: string | null;
   barcode: string | null;
   price: number;
   stockFactor: number;
+  isActive: boolean;
+}
+
+export interface SupplierSummary {
+  id: number;
+  name: string;
+  contactName: string;
+  phone: string;
   isActive: boolean;
 }
 
@@ -16,74 +28,107 @@ export interface Product {
   internalCode: string;
   barcode: string | null;
   name: string;
-  description: string;
-  brand: string;
-  location: string;
+  description: string | null;
+  brand: string | null;
+  location: string | null;
   supplierId: number;
-  supplier: any | null;
+  supplier?: SupplierSummary | null;
   supplierPrice: number;
-  profitMargin: number;
-  lastOrderDate: string | null;
+  profitMargin: number | null;
+  lastOrderDate?: string | null;
   unitOfMeasure: string;
   currentStock: number;
   presentations: ProductPresentation[];
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
   isInventoryTracked: boolean;
   hasExpiration: boolean;
   nextExpirationDate: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface PaginatedData {
-  data: Product[];
-  totalItems: number;
-  totalPages: number;
-  currentPage: number;
+export interface ExpiringProduct {
+  id: number;
+  internalCode: string;
+  name: string;
+  nextExpirationDate: string;
+  daysRemaining: number;
 }
 
-export interface APIProductsResponse {
-  success: boolean;
-  message: string;
-  data: PaginatedData;
-}
+// ==========================================
+// 2. INTERFACES DE ESCRITURA (Creación - POST)
+// ==========================================
 
-export interface APISearchProductsResponse {
-  success: boolean;
-  message: string;
-  data: Product[];
-}
-
-// agregar Presentacion: Interfaz para crear una presentación en el POST
 export interface CreatePresentationRequest {
   name: string;
-  code: string;
-  barcode: string;
+  code?: string | null;
+  barcode?: string | null;
   price: number;
   stockFactor: number;
 }
 
-// Agregar: Interfaz para el POST de un nuevo producto
 export interface CreateProductRequest {
   internalCode: string;
-  barcode: string;
+  barcode?: string | null;
   name: string;
-  description: string;
-  brand: string;
-  location: string;
+  description?: string | null;
+  brand?: string | null;
+  location?: string | null;
   supplierId: number;
   supplierPrice: number;
-  profitMargin: number;
+  profitMargin?: number | null;
   unitOfMeasure: string;
   isInventoryTracked: boolean;
   initialStock: number;
   hasExpiration: boolean;
-  nextExpirationDate: string | null;
+  nextExpirationDate?: string | null;
   presentations: CreatePresentationRequest[];
 }
 
-export interface APICreateProductResponse {
+// ==========================================
+// 3. INTERFACES DE ESCRITURA (Actualización - PUT)
+// ==========================================
+
+export interface UpdatePresentationRequest {
+  id?: number | null; // Si es 0, null o undefined, el backend lo toma como nueva variante
+  name: string;
+  code?: string | null;
+  barcode?: string | null;
+  price: number;
+  stockFactor: number;
+}
+
+export interface UpdateProductRequest {
+  internalCode: string;
+  barcode?: string | null;
+  name: string;
+  description?: string | null;
+  brand?: string | null;
+  location?: string | null;
+  supplierId: number;
+  supplierPrice: number;
+  profitMargin?: number | null;
+  unitOfMeasure: string;
+  isInventoryTracked: boolean;
+  hasExpiration: boolean;
+  nextExpirationDate?: string | null;
+  // Nota: No se incluye initialStock ni currentStock por regla de negocio
+  presentations: UpdatePresentationRequest[];
+}
+
+// ==========================================
+// 4. INTERFACES DE RESPUESTA HTTP (APIs)
+// ==========================================
+
+export interface ApiResponse<T> {
   success: boolean;
   message: string;
-  data: Product | null;
+  data: T;
+}
+
+export interface PagedResponse<T> {
+  data: T[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
 }

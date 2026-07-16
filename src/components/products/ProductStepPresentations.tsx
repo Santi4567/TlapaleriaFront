@@ -12,7 +12,7 @@ interface ProductStepPresentationsProps {
   setPresentations: React.Dispatch<React.SetStateAction<CreatePresentationRequest[]>>;
   onBackToBase: () => void;
   onFinishToSummary: () => void;
-  showNotification: (msg: string) => void; // NUEVO: Prop para la notificación
+  showNotification: (msg: string) => void;
 }
 
 const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
@@ -51,9 +51,8 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     }
   };
 
-  // NUEVO: Máscara para la fecha (AAAA-MM-DD) para evitar el bug del calendario GTK
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, ''); // Solo números
+    let val = e.target.value.replace(/\D/g, ''); 
     if (val.length > 4) val = val.slice(0, 4) + '-' + val.slice(4);
     if (val.length > 7) val = val.slice(0, 7) + '-' + val.slice(7);
     if (val.length > 10) val = val.slice(0, 10);
@@ -113,6 +112,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     setIsVariantFormOpen(true); 
   };
 
+  // ACCIÓN DE BORRADO DE VARIANTES HIJAS
   const handleDeletePresentation = (idx: number) => {
     setPresentations(presentations.filter((_, i) => i !== idx));
     if (editingIndex === idx) {
@@ -122,6 +122,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
       setHasCustomBarcode(false);
       setIsVariantFormOpen(false);
     }
+    showNotification("Variante eliminada de la lista.");
   };
 
   const handleFinish = (e: React.MouseEvent) => {
@@ -282,7 +283,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
               </button>
             </div>
 
-            {/* AQUÍ ESTÁ LA MAGIA: INPUT TIPO TEXT CON MÁSCARA AUTOMÁTICA */}
             <div>
               <label className="block text-xs text-gray-400 font-bold mb-1">Fecha de Vencimiento</label>
               <input 
@@ -311,7 +311,11 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
           {!isVariantFormOpen ? (
             <button 
               type="button" 
-              onClick={() => setIsVariantFormOpen(true)}
+              onClick={() => {
+                setEditingIndex(null);
+                setCurrentPres({ name: '', code: '', barcode: '', price: "", stockFactor: 1 });
+                setIsVariantFormOpen(true);
+              }}
               className="w-full py-6 border-2 border-dashed border-gray-700 hover:border-brand-orange text-gray-400 hover:text-brand-orange font-bold rounded-2xl transition-all flex items-center justify-center text-lg"
             >
               + Agregar Nueva Presentación / Variante
@@ -323,7 +327,11 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                  <span className="bg-brand-orange/20 text-brand-orange text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                    {editingIndex !== null ? 'Editando Variante' : 'Creando Nueva Variante'}
                  </span>
-                 <button onClick={() => { setIsVariantFormOpen(false); setEditingIndex(null); }} className="text-gray-500 hover:text-white font-bold text-sm">✕ Cerrar</button>
+                 {/* FIX: le faltaba type="button". Sin ese atributo, un <button>
+                     dentro de un <form> se comporta como type="submit" por
+                     defecto y puede disparar un envío/recarga nativa del
+                     formulario en vez de solo cerrar este panel. */}
+                 <button type="button" onClick={() => { setIsVariantFormOpen(false); setEditingIndex(null); }} className="text-gray-500 hover:text-white font-bold text-sm">✕ Cerrar</button>
               </div>
 
               <div>
@@ -376,7 +384,18 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              {/* BOTONES DEL FORMULARIO CON ACCIÓN DE ELIMINAR BLINDADA */}
+              <div className="flex justify-between items-center pt-4 border-t border-gray-800/50">
+                {editingIndex !== null ? (
+                  <button 
+                    type="button" 
+                    onClick={() => handleDeletePresentation(editingIndex)} 
+                    className="px-6 py-3 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white font-bold transition-all border border-red-500/30 flex items-center shadow-md"
+                  >
+                    🗑️ Eliminar esta Variante
+                  </button>
+                ) : <div />}
+                
                 <button type="button" onClick={handleSavePresentation} className="px-8 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-brand-orange font-extrabold text-lg transition-colors border border-gray-700 shadow-md">
                   {editingIndex !== null ? '✓ Guardar Cambios en Variante' : '+ Guardar Variante en Lista'}
                 </button>
@@ -403,13 +422,14 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
         <div className="sticky top-0 space-y-4">
           <h3 className="text-xl font-bold text-white border-b border-gray-800 pb-2 mb-4">Resumen de Ventas</h3>
           
+          {/* CARD 1: PRESENTACIÓN PADRE (PURA BASE, NO ELIMINABLE) */}
           <div 
             onClick={() => scrollToSection('seccion-base')} 
-            className="cursor-pointer p-4 bg-brand-orange/10 border border-brand-orange/40 rounded-2xl hover:bg-brand-orange/20 transition-all shadow-md group"
+            className="cursor-pointer p-4 bg-brand-orange/10 border border-brand-orange/40 rounded-2xl hover:bg-brand-orange/20 transition-all shadow-md group relative"
           >
             <div className="flex justify-between items-start mb-1">
                <p className="text-[10px] text-brand-orange font-black uppercase tracking-widest bg-brand-orange/20 px-2 py-0.5 rounded">1. Principal (Base)</p>
-               <span className="text-brand-orange opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+               <span className="text-[10px] text-brand-orange/80 font-semibold bg-black/40 px-2 py-0.5 rounded">Inamovible</span>
             </div>
             <p className="font-extrabold text-white text-lg truncate mt-2">{baseProduct.name || 'Sin Nombre'}</p>
             <div className="flex justify-between items-end mt-3">
@@ -418,15 +438,27 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
             </div>
           </div>
 
+          {/* CARDS 2...N: VARIANTES HIJAS (CON BORRADO RÁPIDO) */}
           {presentations.map((p, idx) => (
             <div 
               key={idx} 
               onClick={() => { scrollToSection('seccion-variantes'); handleEditPresentation(idx); }} 
-              className="cursor-pointer p-4 bg-[#121212] border border-gray-700 rounded-2xl hover:border-gray-500 transition-all shadow-sm group"
+              className="cursor-pointer p-4 bg-[#121212] border border-gray-700 rounded-2xl hover:border-gray-500 transition-all shadow-sm group relative"
             >
                <div className="flex justify-between items-start mb-1">
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{idx + 2}. Variante</p>
-                 <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                 <div className="flex items-center space-x-2">
+                   <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">✎ Editar</span>
+                   {/* BOTÓN RÁPIDO DE ELIMINAR EN LA TARJETA */}
+                   <button 
+                     type="button"
+                     onClick={(e) => { e.stopPropagation(); handleDeletePresentation(idx); }}
+                     className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-0.5"
+                     title="Eliminar esta presentación"
+                   >
+                     🗑️
+                   </button>
+                 </div>
                </div>
                <p className="font-extrabold text-white text-md truncate mt-1">{p.name}</p>
                <div className="flex justify-between items-end mt-2">

@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { productService } from '../services/productService';
-import { Product, CreateProductRequest } from '../types/product';
+import { Product } from '../types/product';
 import ProductTable from '../components/products/ProductTable';
 import ProductCreateForm from '../components/products/ProductCreateForm';
+import ProductReactivateView from '../components/products/ProductReactivateView'; // <-- AGREGA ESTE IMPORT
+
 
 const ProductsScreen: React.FC = () => {
   const { user } = useAuth();
@@ -20,18 +22,25 @@ const ProductsScreen: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 15;
 
-  const [isCreating, setIsCreating] = useState(false);
+  // ESTADOS DEL FORMULARIO Y EDICIÓN
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fetchProducts = async (term: string = '') => {
+  const [isReactivateOpen, setIsReactivateOpen] = useState(false);
+  const [reactivatingProduct, setReactivatingProduct] = useState<any | null>(null);
+
+
+  const fetchProducts = async (term: string = '', activeState: boolean = isActiveFilter) => {
     if (!user?.token) return;
     setIsLoading(true);
     setError(null); 
     
     if (term.trim() !== '') {
-      const response = await productService.searchProducts(user.token, term, isActiveFilter);
+      const response = await productService.searchProducts(user.token, term, activeState);
       if (response && response.success) {
         setProducts(response.data);
         setTotalPages(1); 
@@ -39,7 +48,7 @@ const ProductsScreen: React.FC = () => {
         setError("No se pudo conectar con el servidor para buscar productos.");
       }
     } else {
-      const response = await productService.getProducts(user.token, currentPage, pageSize, isActiveFilter);
+      const response = await productService.getProducts(user.token, currentPage, pageSize, activeState);
       if (response && response.success) {
         setProducts(response.data.data);
         setTotalPages(response.data.totalPages);
@@ -50,40 +59,117 @@ const ProductsScreen: React.FC = () => {
     setIsLoading(false);
   };
 
+  // EFECTO 1: Para búsqueda con temporizador (solo al teclear)
   useEffect(() => {
     if (!user?.token) return;
     const delaySearch = setTimeout(() => {
-      fetchProducts(searchTerm);
+      fetchProducts(searchTerm, isActiveFilter);
     }, 400);
     return () => clearTimeout(delaySearch);
-  }, [searchTerm, currentPage, isActiveFilter, user?.token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
-  const handleSaveProduct = async (productData: CreateProductRequest) => {
+  // EFECTO 2: Para cambio inmediato al cambiar de pestaña o página (sin retardo)
+  useEffect(() => {
     if (!user?.token) return;
-    setIsSubmitting(true);
-    setCreateError(null);
+    fetchProducts(searchTerm, isActiveFilter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, isActiveFilter, user?.token]);
 
-    const res = await productService.createProduct(user.token, productData);
-    
-    if (res && res.success) {
-      setIsCreating(false);
-      setSuccessMessage(`¡Producto "${productData.name}" guardado exitosamente con todas sus variantes!`);
-      setTimeout(() => setSuccessMessage(null), 5000);
-      fetchProducts(searchTerm);
+  // CORRECCIÓN CLAVE: Le pasamos isActiveFilter como 3er parámetro a getProductById
+  const handleEditClick = async (product: Product) => {
+    if (!user?.token) return;
+    const response = await productService.getProductById(user.token, product.id, isActiveFilter);
+    if (response && response.success) {
+      if (!isActiveFilter) {
+        // Camino inactivo: Abre la nueva vista de restauración
+        setReactivatingProduct(response.data);
+        setIsReactivateOpen(true);
+      } else {
+        // Camino activo: Abre el formulario de edición normal
+        setEditingProduct(response.data);
+        setIsFormOpen(true);
+      }
     } else {
-      setCreateError(res?.message || "Ocurrió un error al registrar el producto en el servidor.");
+      setSuccessMessage(null);
+      setError("No se pudo cargar la información del producto.");
     }
-    setIsSubmitting(false);
   };
 
-  const handleEditClick = (product: Product) => {
-    console.log("Abrir modal de edición para:", product.name);
+  //Función para ejecutar el borrado lógico (desactivar)
+  const handleDeactivateProduct = async () => {
+    if (!user?.token || !editingProduct) return;
+    setIsSubmitting(true);
+    const res = await productService.deleteProduct(user.token, editingProduct.id);
+    setIsSubmitting(false);
+
+    if (res && res.success) {
+      handleCloseAllOverlays();
+      setSuccessMessage(`El producto "${editingProduct.name}" ha sido movido a Inactivos.`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+      fetchProducts(searchTerm, isActiveFilter);
+    } else {
+      setFormError(res?.message || "No se pudo desactivar el producto.");
+    }
+  };
+
+  // Si le dan "Sí, Editar" tras restaurar un inactivo
+  const handleReactivatedAndEdit = (product: any) => {
+    setIsReactivateOpen(false);
+    setReactivatingProduct(null);
+    setIsActiveFilter(true); // Cambiamos la pestaña a Activos automáticamente
+    setEditingProduct(product);
+    setIsFormOpen(true); // Abrimos el formulario para editar
+  };
+
+  const handleOpenCreateForm = () => {
+    setEditingProduct(null);
+    setIsFormOpen(true);
+  };
+
+  // FIX: Antes solo cerraba el formulario normal (isFormOpen) y nunca
+  // reseteaba la vista de reactivación (isReactivateOpen). Si esa vista
+  // quedaba abierta, se quedaba flotando por encima de la tabla incluso
+  // al cambiar de pestaña, tapando los resultados de "Inactivos".
+  // Ahora esta única función limpia AMBOS overlays a la vez.
+  const handleCloseAllOverlays = () => {
+    // Formulario normal (crear/editar)
+    setIsFormOpen(false);
+    setEditingProduct(null);
+    setFormError(null);
+    setIsSubmitting(false);
+    // Vista de reactivación (esto era lo que faltaba)
+    setIsReactivateOpen(false);
+    setReactivatingProduct(null);
+  };
+
+  const handleSaveProduct = async (productData: any, isEditing: boolean) => {
+    if (!user?.token) return;
+    setIsSubmitting(true);
+    setFormError(null);
+
+    let res;
+    if (isEditing && editingProduct) {
+      res = await productService.updateProduct(user.token, editingProduct.id, productData);
+    } else {
+      res = await productService.createProduct(user.token, productData);
+    }
+    
+    if (res && res.success) {
+      handleCloseAllOverlays();
+      setSuccessMessage(`¡Producto "${productData.name}" ${isEditing ? 'actualizado' : 'guardado'} exitosamente!`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+      fetchProducts(searchTerm, isActiveFilter);
+    } else {
+      setFormError(res?.message || "Ocurrió un error al procesar el producto en el servidor.");
+    }
+    setIsSubmitting(false);
   };
 
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
       
-      {/* BANNER VERDE DE ÉXITO */}
+      {/* BANNER VERDE DE ÉXITO () Genra un bug vizual ocultando la tabla de inactivos
       {successMessage && (
         <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between z-30 animate-in fade-in slide-in-from-top duration-300 flex-shrink-0">
           <div className="flex items-center">
@@ -92,17 +178,14 @@ const ProductsScreen: React.FC = () => {
           </div>
           <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-white">✕</button>
         </div>
-      )}
+      )} */}
 
-      {/* CONTENEDOR CON CERO COLISIONES GRÁFICAS DE TRANSFORM EN REPOSO */}
+      {/* CONTENEDOR MAESTRO */}
       <div className="flex-1 relative w-full h-full overflow-hidden flex flex-col">
         
-        {/* VISTA 1: CATÁLOGO Y TABLA 
-            CLAVE NUCLEAR: Si NO estamos creando (!isCreating), el style queda en undefined/vacío. 
-            El navegador lo renderiza como DOM nativo puro al 100% de ancho sin capas gráficas que corten el texto.
-        */}
+        {/* VISTA 1: CATÁLOGO Y TABLA */}
         <div 
-          style={isCreating ? {
+          style={(isFormOpen || isReactivateOpen) ? {
             transition: 'all 350ms cubic-bezier(0.4, 0, 0.2, 1)',
             transform: 'translateX(-20%)',
             opacity: 0,
@@ -119,13 +202,13 @@ const ProductsScreen: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
               <div className="flex bg-black/50 p-1.5 rounded-xl border border-gray-800">
                 <button 
-                  onClick={() => { setIsActiveFilter(true); setCurrentPage(1); }}
+                  onClick={() => { handleCloseAllOverlays(); setIsActiveFilter(true); setCurrentPage(1); }}
                   className={`px-5 py-2.5 rounded-lg text-base font-bold transition-all ${isActiveFilter ? 'bg-brand-orange text-black' : 'text-gray-400 hover:text-white'}`}
                 >
                   Activos
                 </button>
                 <button 
-                  onClick={() => { setIsActiveFilter(false); setCurrentPage(1); }}
+                  onClick={() => { handleCloseAllOverlays(); setIsActiveFilter(false); setCurrentPage(1); }}
                   className={`px-5 py-2.5 rounded-lg text-base font-bold transition-all ${!isActiveFilter ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
                 >
                   Inactivos
@@ -140,15 +223,10 @@ const ProductsScreen: React.FC = () => {
                   onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-lg rounded-xl pl-5 pr-12 py-3 focus:outline-none focus:border-brand-orange focus:ring-1 focus:ring-brand-orange transition-all placeholder-gray-500"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                  </svg>
-                </div>
               </div>
 
               <button 
-                onClick={() => setIsCreating(true)}
+                onClick={handleOpenCreateForm}
                 className="bg-brand-orange text-black font-bold text-lg px-6 py-3 rounded-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -164,46 +242,51 @@ const ProductsScreen: React.FC = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            onRetry={() => fetchProducts(searchTerm)}
+            onRetry={() => fetchProducts(searchTerm, isActiveFilter)}
             onEdit={handleEditClick}
             searchTerm={searchTerm}
             onClearSearch={() => { setSearchTerm(''); setCurrentPage(1); }}
           />
         </div>
 
-        {/* VISTA 2: FORMULARIO DE ALTA 
-            Solo existe en el DOM y aplica físicas gráficas cuando isCreating es true. 
-            Al cerrarse, no deja rastro alguno que pueda estorbar a la tabla.
-        */}
-        {isCreating && (
+        
+        {/* VISTA 2: FORMULARIO MULTIUSO (CREAR / EDITAR) */}
+        {isFormOpen && (
           <div 
-            style={{
-              animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards'
-            }}
+            style={{ animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
             className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
           >
             <ProductCreateForm 
-              onCancel={() => { setIsCreating(false); setCreateError(null); }}
+              productToEdit={editingProduct}
+              onCancel={handleCloseAllOverlays}
               onSave={handleSaveProduct}
+              onDeactivate={handleDeactivateProduct} 
               isSubmitting={isSubmitting}
-              error={createError}
+              error={formError}
+            />
+          </div>
+        )}
+
+        {/* VISTA 3: VISTA DE REACTIVACIÓN PARA PRODUCTOS INACTIVOS */}
+        {isReactivateOpen && (
+          <div 
+            style={{ animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
+            className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
+          >
+            <ProductReactivateView 
+              product={reactivatingProduct}
+              onClose={() => { handleCloseAllOverlays(); fetchProducts(searchTerm, isActiveFilter); }}
+              onReactivatedAndEdit={handleReactivatedAndEdit}
             />
           </div>
         )}
 
       </div>
 
-      {/* KEYFRAME NATIVO INYECTADO: Para la animación del formulario sin requerir plugins de Tailwind */}
       <style>{`
         @keyframes slideInFromRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0%);
-            opacity: 1;
-          }
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0%); opacity: 1; }
         }
       `}</style>
 

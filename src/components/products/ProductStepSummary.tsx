@@ -8,6 +8,7 @@ interface ProductStepSummaryProps {
   supplierName: string;
   onBackToEdit: () => void;
   onConfirmSave: () => Promise<void>;
+  onDeactivate?: () => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -17,12 +18,17 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
   supplierName,
   onBackToEdit,
   onConfirmSave,
+  onDeactivate,
   isSubmitting
 }) => {
-  // La tarjeta 0 (Padre) inicia expandida por defecto
   const [expandedCards, setExpandedCards] = useState<number[]>([0]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
-  // CORRECCIÓN: El padre SIEMPRE existe como la presentación principal
+  
+  // Si tiene un ID válido de la BD, significa que estamos editando un producto existente
+  const isEditing = !!baseProduct.id;
+
   const basePresentation = {
     name: baseProduct.name || "Presentación Base",
     code: baseProduct.internalCode || "BASE",
@@ -31,7 +37,6 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
     stockFactor: Number(baseProduct.baseStockFactor || 1)
   };
 
-  // Unimos siempre al Padre (posición 0) con todos sus Hijos (posición 1 en adelante)
   const finalPresentations = [basePresentation, ...presentations];
 
   const toggleCard = (idx: number) => {
@@ -42,23 +47,38 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
     }
   };
 
+  // Reloj de cuenta regresiva de 3 segundos
+  React.useEffect(() => {
+    let timer: any;
+    if (showDeleteModal && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [showDeleteModal, countdown]);
+
+  const handleOpenDeleteModal = () => {
+    setCountdown(3); // Reinicia el contador a 3s siempre que se abre
+    setShowDeleteModal(true);
+  };
+
   return (
-    // CAMBIO CLAVE: min-h-full en lugar de h-full para permitir que crezca si abres muchas cards
     <div className="flex flex-col flex-1 pb-2 min-h-full">
       
       {/* CABECERA */}
       <div className="flex justify-between items-center bg-[#121212] p-6 rounded-2xl border border-gray-800 flex-shrink-0">
         <div>
-          <h3 className="text-2xl font-black text-white">Verificación Final</h3>
+          <h3 className="text-2xl font-black text-white">
+            {isEditing ? 'Verificación de Actualización' : 'Verificación Final'}
+          </h3>
           <p className="text-gray-400 text-sm mt-1">
             {presentations.length === 0 
               ? "Se generará 1 presentación única con el Precio Base."
-              : `Se guardará el artículo principal y sus ${presentations.length} variantes de venta.`}
+              : `Se ${isEditing ? 'actualizará' : 'guardará'} el artículo principal y sus ${presentations.length} variantes de venta.`}
           </p>
         </div>
       </div>
 
-      {/* LISTA DE TARJETAS EXPANDIBLES (flex-1 para llenar el centro) */}
+      {/* LISTA DE TARJETAS EXPANDIBLES */}
       <div className="mt-6 space-y-4 flex-1">
         {finalPresentations.map((pres, idx) => {
           const isExpanded = expandedCards.includes(idx);
@@ -67,11 +87,10 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
           return (
             <div key={idx} className={`border rounded-2xl overflow-hidden transition-all duration-300 group ${isBase ? 'border-brand-orange/40 bg-brand-orange/5' : 'border-gray-800 bg-[#121212]'}`}>
               
-              {/* HEADER DE LA TARJETA (Clicable) */}
               <div 
                 onClick={() => toggleCard(idx)} 
                 className="cursor-pointer p-5 flex justify-between items-center hover:bg-black/40 transition-colors"
-                title="Haz clic para ver detalles o modificar"
+                title="Haz clic para ver detalles o modifying"
               >
                 <div className="flex items-center space-x-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-md ${isBase ? 'bg-brand-orange text-black' : 'bg-gray-800 text-white border border-gray-600'}`}>
@@ -82,7 +101,7 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
                       <h4 className="text-xl font-bold text-white group-hover:text-brand-orange transition-colors">{pres.name}</h4>
                       {isBase && (
                         <span className="bg-brand-orange/20 text-brand-orange text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-widest border border-brand-orange/30">
-                          Principal
+                          Principal (No eliminable)
                         </span>
                       )}
                     </div>
@@ -103,7 +122,6 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
                 </div>
               </div>
 
-              {/* CONTENIDO EXPANDIDO */}
               {isExpanded && (
                 <div className="p-6 border-t border-gray-800/50 bg-black/60 animate-in slide-in-from-top-2 fade-in duration-200">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-6">
@@ -126,7 +144,6 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
                     </div>
                   </div>
                   
-                  {/* BOTÓN DE EDITAR INTERNO SÚPER CLARO */}
                   <div className="flex justify-end border-t border-gray-800/50 pt-4 mt-2">
                     <button 
                       onClick={(e) => { e.stopPropagation(); onBackToEdit(); }} 
@@ -143,23 +160,62 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
         })}
       </div>
 
-      {/* BOTONES FINALES: mt-auto ES EL QUE LOS TIRA HASTA EL SUELO */}
-      <div className="mt-auto pt-6 border-t border-gray-800 flex justify-between flex-shrink-0">
-        <button 
-          type="button" onClick={onBackToEdit}
-          className="px-6 py-4 rounded-xl border border-gray-700 text-gray-300 font-bold hover:bg-gray-800 transition-colors"
-        >
-          ← Regresar a Configuración
-        </button>
+      {/* BOTONES FINALES CON EL NOMBRE CORREGIDO: onBackToEdit */}
+      {/* BOTONES FINALES */}
+      <div className="mt-auto pt-6 border-t border-gray-800 flex justify-between items-center flex-shrink-0 gap-4">
+        <div className="flex space-x-4">
+          <button type="button" onClick={onBackToEdit} className="px-6 py-4 rounded-xl border border-gray-700 text-gray-300 font-bold hover:bg-gray-800 transition-colors">
+            ← Regresar
+          </button>
+
+          {/* BOTÓN DESACTIVAR (Solo aparece si estamos editando un producto existente) */}
+          {isEditing && onDeactivate && (
+            <button 
+              type="button" onClick={handleOpenDeleteModal}
+              className="px-6 py-4 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold transition-all border border-red-500/30 flex items-center"
+            >
+              🗑️ Desactivar Producto
+            </button>
+          )}
+        </div>
         
-        <button 
-          onClick={onConfirmSave}
-          disabled={isSubmitting}
-          className="px-10 py-4 rounded-2xl bg-brand-orange hover:bg-orange-600 text-black font-black text-xl transition-all shadow-[0_0_30px_rgba(255,90,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-        >
-          {isSubmitting ? 'Guardando...' : '¡Confirmar y Guardar Producto!'}
+        <button onClick={onConfirmSave} disabled={isSubmitting} className="px-10 py-4 rounded-2xl bg-brand-orange hover:bg-orange-600 text-black font-black text-xl transition-all shadow-lg disabled:opacity-50">
+          {isSubmitting ? 'Procesando...' : (isEditing ? '¡Confirmar y Actualizar Producto!' : '¡Confirmar y Guardar Producto!')}
         </button>
       </div>
+
+      {/* MODAL DE ADVERTENCIA DE ELIMINACIÓN CON CONTADOR DE 3 SEGUNDOS */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-[#121212] p-8 rounded-3xl border-2 border-red-500/50 text-center space-y-6 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+            <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-2xl flex items-center justify-center mx-auto text-3xl font-black">
+              ⚠️
+            </div>
+            
+            <h3 className="text-2xl font-black text-white">¿Desactivar Producto?</h3>
+            
+            {/* TEXTO EXACTO QUE PEDISTE */}
+            <p className="text-gray-300 text-sm leading-relaxed font-medium bg-black/50 p-4 rounded-xl border border-gray-800">
+              Los productos no se pueden eliminar, estos serán movidos al apartado de inactivos, y no se podrán vender ni aparecerán en los resultados del buscador.
+            </p>
+
+            <div className="flex space-x-4 pt-2">
+              <button onClick={() => setShowDeleteModal(false)} className="w-1/2 py-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl transition-all">
+                Cancelar
+              </button>
+              
+              {/* BOTÓN BLOQUEADO HASTA QUE EL CONTADOR LLEGUE A 0 */}
+              <button 
+                onClick={() => { setShowDeleteModal(false); onDeactivate?.(); }}
+                disabled={countdown > 0}
+                className={`w-1/2 py-4 font-black rounded-xl transition-all flex items-center justify-center ${countdown > 0 ? 'bg-red-500/20 text-red-400/50 cursor-not-allowed border border-red-500/20' : 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30'}`}
+              >
+                {countdown > 0 ? `Espere (${countdown}s)...` : 'Sí, Desactivar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
