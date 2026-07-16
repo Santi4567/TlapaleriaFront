@@ -5,8 +5,7 @@ import { productService } from '../services/productService';
 import { Product } from '../types/product';
 import ProductTable from '../components/products/ProductTable';
 import ProductCreateForm from '../components/products/ProductCreateForm';
-import ProductReactivateView from '../components/products/ProductReactivateView'; // <-- AGREGA ESTE IMPORT
-
+import ProductReactivateView from '../components/products/ProductReactivateView';
 
 const ProductsScreen: React.FC = () => {
   const { user } = useAuth();
@@ -33,7 +32,6 @@ const ProductsScreen: React.FC = () => {
   const [isReactivateOpen, setIsReactivateOpen] = useState(false);
   const [reactivatingProduct, setReactivatingProduct] = useState<any | null>(null);
 
-
   const fetchProducts = async (term: string = '', activeState: boolean = isActiveFilter) => {
     if (!user?.token) return;
     setIsLoading(true);
@@ -59,7 +57,6 @@ const ProductsScreen: React.FC = () => {
     setIsLoading(false);
   };
 
-  // EFECTO 1: Para búsqueda con temporizador (solo al teclear)
   useEffect(() => {
     if (!user?.token) return;
     const delaySearch = setTimeout(() => {
@@ -67,26 +64,40 @@ const ProductsScreen: React.FC = () => {
     }, 400);
     return () => clearTimeout(delaySearch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  }, [searchTerm, currentPage, isActiveFilter, user?.token]);
 
-  // EFECTO 2: Para cambio inmediato al cambiar de pestaña o página (sin retardo)
-  useEffect(() => {
-    if (!user?.token) return;
-    fetchProducts(searchTerm, isActiveFilter);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, isActiveFilter, user?.token]);
+  // FUNCIÓN PARA CERRAR Y FORZAR REFLOW EN TAURI
+  const handleCloseAllOverlays = () => {
+    setIsFormOpen(false);
+    setEditingProduct(null);
+    setFormError(null);
+    setIsSubmitting(false);
+    
+    setIsReactivateOpen(false);
+    setReactivatingProduct(null);
 
-  // CORRECCIÓN CLAVE: Le pasamos isActiveFilter como 3er parámetro a getProductById
+    // TRUCO TAURI: Forzar un evento de resize en la ventana para obligar al webview a repintar el DOM colapsado
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+  };
+
+  // CAMBIO DE PESTAÑA CON REFRESCO FORZADO
+  const handleTabChange = (active: boolean) => {
+    if (isActiveFilter === active && !isFormOpen && !isReactivateOpen) return;
+    handleCloseAllOverlays();
+    setIsActiveFilter(active);
+    setCurrentPage(1);
+  };
+
   const handleEditClick = async (product: Product) => {
     if (!user?.token) return;
     const response = await productService.getProductById(user.token, product.id, isActiveFilter);
     if (response && response.success) {
       if (!isActiveFilter) {
-        // Camino inactivo: Abre la nueva vista de restauración
         setReactivatingProduct(response.data);
         setIsReactivateOpen(true);
       } else {
-        // Camino activo: Abre el formulario de edición normal
         setEditingProduct(response.data);
         setIsFormOpen(true);
       }
@@ -96,7 +107,6 @@ const ProductsScreen: React.FC = () => {
     }
   };
 
-  //Función para ejecutar el borrado lógico (desactivar)
   const handleDeactivateProduct = async () => {
     if (!user?.token || !editingProduct) return;
     setIsSubmitting(true);
@@ -104,8 +114,9 @@ const ProductsScreen: React.FC = () => {
     setIsSubmitting(false);
 
     if (res && res.success) {
+      const prodName = editingProduct.name;
       handleCloseAllOverlays();
-      setSuccessMessage(`El producto "${editingProduct.name}" ha sido movido a Inactivos.`);
+      setSuccessMessage(`El producto "${prodName}" ha sido movido a Inactivos.`);
       setTimeout(() => setSuccessMessage(null), 5000);
       fetchProducts(searchTerm, isActiveFilter);
     } else {
@@ -113,34 +124,17 @@ const ProductsScreen: React.FC = () => {
     }
   };
 
-  // Si le dan "Sí, Editar" tras restaurar un inactivo
-  const handleReactivatedAndEdit = (product: any) => {
+  const handleReactivatedAndEdit = async (product: any) => {
     setIsReactivateOpen(false);
     setReactivatingProduct(null);
-    setIsActiveFilter(true); // Cambiamos la pestaña a Activos automáticamente
+    setIsActiveFilter(true); 
     setEditingProduct(product);
-    setIsFormOpen(true); // Abrimos el formulario para editar
+    setIsFormOpen(true); 
   };
 
   const handleOpenCreateForm = () => {
-    setEditingProduct(null);
+    handleCloseAllOverlays();
     setIsFormOpen(true);
-  };
-
-  // FIX: Antes solo cerraba el formulario normal (isFormOpen) y nunca
-  // reseteaba la vista de reactivación (isReactivateOpen). Si esa vista
-  // quedaba abierta, se quedaba flotando por encima de la tabla incluso
-  // al cambiar de pestaña, tapando los resultados de "Inactivos".
-  // Ahora esta única función limpia AMBOS overlays a la vez.
-  const handleCloseAllOverlays = () => {
-    // Formulario normal (crear/editar)
-    setIsFormOpen(false);
-    setEditingProduct(null);
-    setFormError(null);
-    setIsSubmitting(false);
-    // Vista de reactivación (esto era lo que faltaba)
-    setIsReactivateOpen(false);
-    setReactivatingProduct(null);
   };
 
   const handleSaveProduct = async (productData: any, isEditing: boolean) => {
@@ -155,6 +149,8 @@ const ProductsScreen: React.FC = () => {
       res = await productService.createProduct(user.token, productData);
     }
     
+    setIsSubmitting(false);
+
     if (res && res.success) {
       handleCloseAllOverlays();
       setSuccessMessage(`¡Producto "${productData.name}" ${isEditing ? 'actualizado' : 'guardado'} exitosamente!`);
@@ -163,36 +159,37 @@ const ProductsScreen: React.FC = () => {
     } else {
       setFormError(res?.message || "Ocurrió un error al procesar el producto en el servidor.");
     }
-    setIsSubmitting(false);
   };
 
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
       
-      {/* BANNER VERDE DE ÉXITO () Genra un bug vizual ocultando la tabla de inactivos
+      {/* BANNER VERDE DE ÉXITO BLINDADO FLOTANTE */}
       {successMessage && (
-        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between z-30 animate-in fade-in slide-in-from-top duration-300 flex-shrink-0">
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-3 text-green-500"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-            {successMessage}
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-50 pointer-events-auto">
+          <div className="bg-[#1a1a1a]/95 backdrop-blur-md border border-green-500/50 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between p-4 shadow-[0_10px_25px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-3 text-green-500 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <span>{successMessage}</span>
+            </div>
+            <button 
+              onClick={() => setSuccessMessage(null)} 
+              className="text-green-500 hover:text-white font-bold ml-4 p-1 rounded-lg transition-colors"
+              title="Cerrar notificación"
+            >
+              ✕
+            </button>
           </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-white">✕</button>
         </div>
-      )} */}
+      )}
 
       {/* CONTENEDOR MAESTRO */}
       <div className="flex-1 relative w-full h-full overflow-hidden flex flex-col">
         
-        {/* VISTA 1: CATÁLOGO Y TABLA */}
-        <div 
-          style={(isFormOpen || isReactivateOpen) ? {
-            transition: 'all 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: 'translateX(-20%)',
-            opacity: 0,
-            pointerEvents: 'none'
-          } : undefined}
-          className="w-full h-full flex flex-col flex-1 transition-opacity duration-300"
-        >
+        {/* VISTA 1: CATÁLOGO Y TABLA (Siempre montada en el DOM, sin animaciones de escala/opacidad que rompan el reflow) */}
+        <div className={`w-full h-full flex flex-col flex-1 transition-all duration-200 ${(isFormOpen || isReactivateOpen) ? 'invisible opacity-0 pointer-events-none absolute' : 'visible opacity-100 relative'}`}>
           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 flex-shrink-0 gap-4">
             <div>
               <h2 className="text-4xl font-extrabold text-white tracking-tight">Catálogo de Productos</h2>
@@ -202,13 +199,13 @@ const ProductsScreen: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
               <div className="flex bg-black/50 p-1.5 rounded-xl border border-gray-800">
                 <button 
-                  onClick={() => { handleCloseAllOverlays(); setIsActiveFilter(true); setCurrentPage(1); }}
+                  onClick={() => handleTabChange(true)}
                   className={`px-5 py-2.5 rounded-lg text-base font-bold transition-all ${isActiveFilter ? 'bg-brand-orange text-black' : 'text-gray-400 hover:text-white'}`}
                 >
                   Activos
                 </button>
                 <button 
-                  onClick={() => { handleCloseAllOverlays(); setIsActiveFilter(false); setCurrentPage(1); }}
+                  onClick={() => handleTabChange(false)}
                   className={`px-5 py-2.5 rounded-lg text-base font-bold transition-all ${!isActiveFilter ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
                 >
                   Inactivos
@@ -235,7 +232,9 @@ const ProductsScreen: React.FC = () => {
             </div>
           </div>
 
+          {/* EL TRUCO DEL KEY: Al pasar una clave única (key) basada en el filtro, obligamos al árbol de React a destruir y repintar la tabla desde cero en el motor del WebView */}
           <ProductTable 
+            key={isActiveFilter ? 'table-active' : 'table-inactive'}
             products={products}
             isLoading={isLoading}
             error={error}
@@ -253,8 +252,8 @@ const ProductsScreen: React.FC = () => {
         {/* VISTA 2: FORMULARIO MULTIUSO (CREAR / EDITAR) */}
         {isFormOpen && (
           <div 
-            style={{ animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
-            className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
+            style={{ animation: 'slideInFromRight 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
+            className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]"
           >
             <ProductCreateForm 
               productToEdit={editingProduct}
@@ -270,8 +269,8 @@ const ProductsScreen: React.FC = () => {
         {/* VISTA 3: VISTA DE REACTIVACIÓN PARA PRODUCTOS INACTIVOS */}
         {isReactivateOpen && (
           <div 
-            style={{ animation: 'slideInFromRight 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
-            className="absolute inset-0 w-full h-full flex flex-col z-20 bg-[#161616]"
+            style={{ animation: 'slideInFromRight 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
+            className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]"
           >
             <ProductReactivateView 
               product={reactivatingProduct}

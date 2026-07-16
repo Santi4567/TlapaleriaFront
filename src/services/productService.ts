@@ -52,8 +52,10 @@ export const productService = {
   ): Promise<ApiResponse<Product[]> | null> {
     try {
       const encodedTerm = encodeURIComponent(searchTerm);
+      
+      // CORRECCIÓN: Cambiar "searchTerm=" por "query="
       const response = await fetch(
-        `${API_URL}/search?searchTerm=${encodedTerm}&isActive=${isActive}`,
+        `${API_URL}/search?query=${encodedTerm}&isActive=${isActive}`,
         {
           method: 'GET',
           headers: {
