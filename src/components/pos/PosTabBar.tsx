@@ -10,6 +10,7 @@ interface PosTabBarProps {
   onCloseTab: (id: string, e: React.MouseEvent) => void;
   onReorderTabs: (draggedId: string, targetId: string) => void;
   onClearTable: () => void;
+  onCloseAll: () => void;
   hasItems: boolean;
 }
 
@@ -21,6 +22,7 @@ const PosTabBar: React.FC<PosTabBarProps> = ({
   onCloseTab,
   onReorderTabs,
   onClearTable,
+  onCloseAll,
   hasItems
 }) => {
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
@@ -98,6 +100,17 @@ const PosTabBar: React.FC<PosTabBarProps> = ({
 
       {/* BOTONES CON ATAJOS TIPO TECLA FÍSICA (<KBD>) */}
       <div className="flex items-center space-x-3 pl-3 border-l-2 border-gray-800/80 flex-shrink-0">
+
+      {/* NUEVO: BOTÓN CERRAR TODAS */}
+        <button
+          type="button"
+          onClick={onCloseAll}
+          disabled={tabs.length <= 1}
+          className="px-3.5 py-3 bg-red-500/10 hover:bg-red-600/20 disabled:opacity-20 disabled:cursor-not-allowed text-red-400 hover:text-red-300 font-extrabold text-sm rounded-2xl border-2 border-red-500/30 transition-all flex items-center space-x-1.5 shadow-sm"
+          title="Cerrar todas las pestañas abiertas y regresar a la inicial"
+        >
+          <span>✕ Cerrar Todas ({tabs.length})</span>
+        </button>
         
         {/* BOTÓN LIMPIAR [F4] */}
         <button

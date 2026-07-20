@@ -13,8 +13,10 @@ const PosProductInfoModal: React.FC<PosProductInfoModalProps> = ({
   onClose,
   onAddProduct
 }) => {
-  useEffect(() => {
+useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return; // <-- ANTI-REBOTE
+
       if (e.key === 'Enter') {
         e.preventDefault();
         onAddProduct(product);
@@ -27,7 +29,6 @@ const PosProductInfoModal: React.FC<PosProductInfoModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [product, onAddProduct, onClose]);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-6 animate-in fade-in duration-200">
       {/* VENTANA MÁS ANCHA (max-w-2xl) Y CON MUCHO MÁS AIRE INTERNO */}

@@ -5,6 +5,7 @@ import { usePosTabs } from '../hooks/usePosTabs';
 import { usePosSearch } from '../hooks/usePosSearch';
 import { Product, ProductPresentation } from '../types/product';
 import { PaymentMethod } from '../types/pos';
+import { saleService } from '../services/saleService';
 
 import PosTabBar from '../components/pos/PosTabBar';
 import PosCartTable from '../components/pos/PosCartTable';
@@ -19,7 +20,8 @@ import PosCashModal from '../components/pos/PosCashModal';
 import PosPaymentModal from '../components/pos/PosPaymentModal';
 import PosSuccessModal from '../components/pos/PosSuccessModal';
 import PosClearConfirmModal from '../components/pos/PosClearConfirmModal';
-import PosProductInfoModal from '../components/pos/PosProductInfoModal'; // <-- NUEVO MODAL
+import PosProductInfoModal from '../components/pos/PosProductInfoModal';
+import PosCloseAllConfirmModal from '../components/pos/PosCloseAllConfirmModal';
 
 type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'SUCCESS';
 
@@ -39,24 +41,28 @@ const PosScreen: React.FC = () => {
     removeItem,
     clearActiveTabItems,
     setClientName,
-    setPaymentMethod
+    setPaymentMethod,
+    closeAllTabs
   } = usePosTabs();
 
-  // Referencia física para el buscador (Para el atajo F3)
+  // Referencias físicas (Para el atajo F3 y el escudo contra 100 pestañas)
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const lastTabCreateTime = useRef(0);
 
   // Estados para modales de productos
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedPresentation, setSelectedPresentation] = useState<ProductPresentation | null>(null);
-  
-  // NUEVO: Estado para abrir la ficha técnica del producto
   const [infoProduct, setInfoProduct] = useState<Product | null>(null);
 
   // Estados de flujo de cobro, conversión y advertencias
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [showCloseAllModal, setShowCloseAllModal] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('NONE');
-  const [lastSaleId, setLastSaleId] = useState<string>('');
+  
+  // Estados para la API de Ventas
+  const [isProcessingSale, setIsProcessingSale] = useState(false);
+  const [lastSaleData, setLastSaleData] = useState<any>(null);
   
   // Índice para navegar con flechas arriba/abajo en la lista de resultados
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
@@ -64,18 +70,33 @@ const PosScreen: React.FC = () => {
   // Sistema de notificación flotante (Toasts)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // MAPA PARA TRADUCIR EL ENUM DEL FRONTEND AL STRING ESTRICTO DEL BACKEND DTO
+  const API_PAYMENT_METHODS: Record<PaymentMethod, string> = {
+    CASH: 'Efectivo',
+    TRANSFER: 'Transferencia',
+    CARD: 'Tarjeta'
+  };
+
   const showNotification = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Hook de búsqueda
+  // Hook de búsqueda blindado contra rebotes
   const { searchTerm, setSearchTerm, results, isLoading, handleSelect } = usePosSearch((prod) => {
+    if (!prod.presentations || prod.presentations.length === 0) {
+      showNotification('❌ Este producto no tiene presentaciones activas.');
+      return;
+    }
+
     if (prod.presentations.length === 1) {
+      // Si solo tiene 1, saltamos el modal de presentaciones para ser más rápidos
       setSelectedProduct(prod);
       setSelectedPresentation(prod.presentations[0]);
-    } else if (prod.presentations.length > 1) {
+    } else {
+      // Si tiene 2 o más, obligamos a que se muestre el menú de presentaciones
       setSelectedProduct(prod);
+      setSelectedPresentation(null);
     }
   });
 
@@ -85,22 +106,28 @@ const PosScreen: React.FC = () => {
   }, [results]);
 
   // ============================================================================
-  // ATAJOS DE TECLADO GLOBALES (F1, F2, F3, F4)
+  // ATAJOS DE TECLADO GLOBALES (F1, F2, F3, F4, F8/F12)
   // ============================================================================
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 1. REGLA DE ORO ANTI-SPAM: Si la tecla se mantiene presionada, IGNORAR
+      if (e.repeat) return;
+
       // Ignorar si hay un modal crítico abierto
-      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || selectedProduct || infoProduct) return;
+      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || selectedProduct || infoProduct) return;
 
       if (e.key === 'F1') {
         e.preventDefault();
+        if (Date.now() - lastTabCreateTime.current < 300) return;
+        lastTabCreateTime.current = Date.now();
         createNewTab('SALE');
       } else if (e.key === 'F2') {
         e.preventDefault();
+        if (Date.now() - lastTabCreateTime.current < 300) return;
+        lastTabCreateTime.current = Date.now();
         createNewTab('QUOTE');
       } else if (e.key === 'F3') {
         e.preventDefault();
-        // ATAJO F3: Saltar al buscador y seleccionar todo el texto para escribir rápido
         if (searchInputRef.current) {
           searchInputRef.current.focus();
           searchInputRef.current.select();
@@ -110,13 +137,23 @@ const PosScreen: React.FC = () => {
         if (activeTab.items.length > 0) {
           setShowClearModal(true);
         }
+      } 
+      // ======================================================================
+      // NUEVO: ATAJO PARA COBRAR AHORA [F8 o F12]
+      // ======================================================================
+      else if (e.key === 'F8' || e.key === 'F12') {
+        e.preventDefault();
+        // Solo abrimos el menú de cobro si es una Venta Directa y hay artículos en la tabla
+        if (activeTab.type === 'SALE' && activeTab.items.length > 0) {
+          setCheckoutStep('SELECT_METHOD');
+        }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [checkoutStep, showSwitchModal, showClearModal, selectedProduct, infoProduct, activeTab.items.length, createNewTab]);
-
+  }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
+  
   // ============================================================================
   // NAVEGACIÓN POR TECLADO EN LA LISTA DESPLEGABLE DE RESULTADOS
   // ============================================================================
@@ -131,13 +168,13 @@ const PosScreen: React.FC = () => {
       setHighlightedIndex((prev) => (prev - 1 + results.length) % results.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      // Enter selecciona normalmente para vender
+      e.stopPropagation(); // CORTA EL BURBUJEO PARA QUE NO LE LLEGUE AL MODAL DE PRESENTACIÓN
+      if (e.repeat) return;
       if (results[highlightedIndex]) {
         handleSelect(results[highlightedIndex]);
       }
     } else if (e.key === 'i' && (e.altKey || e.ctrlKey)) {
       e.preventDefault();
-      // Atajo Alt+I o Ctrl+I: Abre la ficha informativa del producto resaltado
       if (results[highlightedIndex]) {
         setInfoProduct(results[highlightedIndex]);
       }
@@ -177,19 +214,44 @@ const PosScreen: React.FC = () => {
     }
   };
 
-  const handleFinishTransaction = (referenceOrReceived: string | number) => {
-    const generatedId = `V-20260717-${Math.floor(1000 + Math.random() * 9000)}`;
-    setLastSaleId(generatedId);
-    setCheckoutStep('SUCCESS');
+  const handleFinishTransaction = async (referenceOrReceived: string | number) => {
+    if (!user?.token) return;
+    setIsProcessingSale(true);
+
+    // 1. Armar el DTO exacto que pide tu backend
+    const payload = {
+      paymentMethod: API_PAYMENT_METHODS[activeTab.paymentMethod],
+      paymentReference: referenceOrReceived.toString(),
+      details: activeTab.items.map(item => ({
+        presentationId: item.presentationId,
+        quantity: item.quantity
+      }))
+    };
+
+    // 2. Ejecutar Petición al Backend
+    const response = await saleService.createSale(user.token, payload);
+    setIsProcessingSale(false);
+
+    if (response && response.success) {
+      setLastSaleData(response.data);
+      setCheckoutStep('SUCCESS');
+    } else {
+      showNotification(`❌ Error: ${response?.message || 'No se pudo registrar la venta.'}`);
+    }
   };
 
+  // REGLA: Al terminar venta exitosa, VACIAMOS TODO sin cerrar la pestaña
   const handleDismissSuccess = () => {
     setCheckoutStep('NONE');
-    closeTab(activeTabId);
+    setLastSaleData(null);
+    clearActiveTabItems();               // Vacia artículos
+    setClientName('Público en General'); // Resetea cliente
+    setPaymentMethod('CASH');            // Resetea método de pago
   };
 
   return (
-    <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
+    // CONTENEDOR PRINCIPAL CON min-h-0 PARA SCROLL RESPONSIVO PERFECTO
+    <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden min-h-0">
       
       {/* NOTIFICACIÓN FLOTANTE ESTILO TOAST */}
       {toastMessage && (
@@ -210,6 +272,7 @@ const PosScreen: React.FC = () => {
         onCloseTab={closeTab}
         onReorderTabs={reorderTabs}
         onClearTable={() => setShowClearModal(true)}
+        onCloseAll={() => setShowCloseAllModal(true)}
         hasItems={activeTab.items.length > 0}
       />
 
@@ -217,58 +280,65 @@ const PosScreen: React.FC = () => {
       <div className="relative mb-6 flex-shrink-0">
         <div className="relative">
           <input
-            ref={searchInputRef} // <-- REF PARA ATAJO F3
+            ref={searchInputRef}
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleSearchKeyDown} // <-- NAVEGACIÓN POR FLECHAS Y ATAJO ALT+I
-            placeholder="🔍 Escanea código de barras o busca por nombre (Ej. Cemento, THW, Valvula) [Atajo: F3]..."
-            className="w-full bg-[#121212] border-2 border-gray-800 text-white text-lg rounded-2xl pl-5 pr-28 py-4 font-bold focus:outline-none focus:border-brand-orange transition-all placeholder-gray-500 shadow-inner"
+            onKeyDown={handleSearchKeyDown}
+            placeholder="🔍 Escanea código de barras o busca por nombre (Ej. Cemento, THW, Valvula)..."
+            className="w-full bg-[#121212] border-2 border-gray-800 text-white text-xl rounded-3xl pl-6 pr-32 py-4.5 font-bold focus:outline-none focus:border-brand-orange transition-all placeholder-gray-500 shadow-inner"
           />
-          <span className="absolute right-4 top-4 bg-gray-800 text-gray-400 px-2 py-1 rounded-lg text-xs font-mono pointer-events-none border border-gray-700">
-            F3
-          </span>
-          {isLoading && <div className="absolute right-14 top-4 text-brand-orange animate-spin font-black text-xl">↻</div>}
+          
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center space-x-2 pointer-events-none">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest hidden md:inline">Atajo:</span>
+            <kbd className="bg-gray-800 text-brand-orange px-3 py-1.5 rounded-xl text-sm font-mono font-black border-2 border-gray-700 shadow-md">
+              F3
+            </kbd>
+          </div>
+
+          {isLoading && <div className="absolute right-32 top-1/2 -translate-y-1/2 text-brand-orange animate-spin font-black text-2xl">↻</div>}
         </div>
 
-        {/* LISTA DESPLEGABLE CON BOTÓN DE INFO INTEGRADO */}
+        {/* LISTA DESPLEGABLE DE RESULTADOS */}
         {results.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-2 bg-[#121212] border-2 border-brand-orange/50 rounded-2xl shadow-2xl z-40 max-h-80 overflow-y-auto custom-scrollbar divide-y divide-gray-800">
+          <div className="absolute left-0 right-0 top-full mt-3 bg-[#121212] border-2 border-brand-orange/60 rounded-3xl shadow-2xl z-40 max-h-96 overflow-y-auto custom-scrollbar divide-y divide-gray-800/80">
             {results.map((prod, idx) => {
               const isHighlighted = idx === highlightedIndex;
               return (
                 <div
                   key={prod.id}
                   onClick={() => handleSelect(prod)}
-                  className={`p-4 cursor-pointer flex justify-between items-center transition-all ${
-                    isHighlighted ? 'bg-gray-800/90 border-l-4 border-brand-orange pl-3' : 'hover:bg-gray-800/50'
+                  className={`p-5 cursor-pointer flex justify-between items-center transition-all ${
+                    isHighlighted ? 'bg-gray-800/90 border-l-8 border-brand-orange pl-4 shadow-md' : 'hover:bg-gray-800/50'
                   }`}
                 >
-                  <div className="flex-1 pr-4 truncate">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-brand-orange text-sm">{prod.internalCode}</span>
-                      <h4 className="font-extrabold text-white text-base truncate">{prod.name}</h4>
+                  <div className="flex-1 pr-6 truncate">
+                    <div className="flex items-center space-x-3 mb-1">
+                      <span className="font-mono font-black text-brand-orange bg-black/60 px-2.5 py-1 rounded-lg text-sm border border-gray-800">
+                        {prod.internalCode}
+                      </span>
+                      <h4 className="font-extrabold text-white text-lg truncate">{prod.name}</h4>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 font-mono truncate">
-                      Marca: {prod.brand || 'N/A'} | Ubic: {prod.location || '—'} | Stock: {prod.currentStock} {prod.unitOfMeasure}
+                    <p className="text-xs text-gray-400 font-mono truncate">
+                      Marca: <strong className="text-gray-200">{prod.brand || 'N/A'}</strong> | Ubic: <strong className="text-gray-200">{prod.location || '—'}</strong> | Stock: <strong className="text-brand-orange">{prod.currentStock} {prod.unitOfMeasure}</strong>
                     </p>
                   </div>
 
-                  {/* ACCIONES DE LA FILA: PRESENTACIONES Y BOTÓN INFO */}
-                  <div className="flex items-center space-x-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-xs bg-black px-2 py-1 rounded text-gray-300 font-mono border border-gray-800">
+                  <div className="flex items-center space-x-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-xs bg-black px-3 py-1.5 rounded-xl text-gray-300 font-mono font-bold border border-gray-800">
                       {prod.presentations.length} {prod.presentations.length === 1 ? 'pres.' : 'vars.'}
                     </span>
 
-                    {/* BOTÓN DE INFO INDEPENDIENTE */}
                     <button
                       type="button"
                       onClick={() => setInfoProduct(prod)}
                       title="Ver ficha técnica del producto [Atajo: Alt+I]"
-                      className="px-3 py-1.5 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-black font-extrabold text-xs rounded-xl border border-brand-orange/30 transition-all flex items-center space-x-1 shadow-sm"
+                      className="px-4 py-2 bg-brand-orange/15 hover:bg-brand-orange text-brand-orange hover:text-black font-black text-sm rounded-2xl border-2 border-brand-orange/40 transition-all flex items-center space-x-2 shadow-sm group"
                     >
                       <span>ℹ️ Info</span>
-                      <span className="bg-brand-orange/20 text-current px-1 py-0.2 rounded text-[9px] font-mono border border-current">Alt+I</span>
+                      <kbd className="bg-black/70 text-brand-orange group-hover:bg-black group-hover:text-brand-orange px-2 py-0.5 rounded-md text-xs font-mono font-black border border-brand-orange/40 shadow-inner">
+                        Alt + I
+                      </kbd>
                     </button>
                   </div>
                 </div>
@@ -278,9 +348,13 @@ const PosScreen: React.FC = () => {
         )}
       </div>
 
-      {/* 3. TABLA Y CHECKOUT */}
-      <div className="flex-1 flex flex-col xl:flex-row gap-6 overflow-hidden">
-        <PosCartTable items={activeTab.items} onUpdateQty={updateItemQuantity} onRemove={removeItem} />
+      {/* 3. TABLA Y CHECKOUT (RESPONSIVO CON SCROLL) */}
+      <div className="flex-1 flex flex-col xl:flex-row gap-6 overflow-y-auto xl:overflow-hidden custom-scrollbar pr-2 xl:pr-0 pb-4 xl:pb-0 min-h-0">
+        
+        <div className="flex-1 flex flex-col min-h-[400px] xl:min-h-0">
+          <PosCartTable items={activeTab.items} onUpdateQty={updateItemQuantity} onRemove={removeItem} />
+        </div>
+        
         <PosCheckoutPanel
           activeTab={activeTab}
           onClientChange={setClientName}
@@ -288,6 +362,7 @@ const PosScreen: React.FC = () => {
           onPrintQuote={() => showNotification(`🖨️ Imprimiendo cotización de "${activeTab.title}"...`)}
           onRequestSwitch={() => setShowSwitchModal(true)}
         />
+        
       </div>
 
       {/* 4. MODALES DE SELECCIÓN DE PRODUCTO Y CANTIDAD */}
@@ -298,14 +373,14 @@ const PosScreen: React.FC = () => {
         <PosQuantityModal product={selectedProduct} presentation={selectedPresentation} onClose={() => { setSelectedProduct(null); setSelectedPresentation(null); }} onConfirm={handleConfirmAdd} />
       )}
 
-      {/* 5. NUEVO: MODAL DE INFORMACIÓN Y FICHA TÉCNICA DEL PRODUCTO */}
+      {/* 5. MODAL DE FICHA TÉCNICA DEL PRODUCTO */}
       {infoProduct && (
         <PosProductInfoModal
           product={infoProduct}
           onClose={() => setInfoProduct(null)}
           onAddProduct={(prod) => {
-            setInfoProduct(null); // Cerramos la ficha info
-            handleSelect(prod);   // Disparamos el flujo normal de venta (pres/cantidad)
+            setInfoProduct(null);
+            handleSelect(prod);
           }}
         />
       )}
@@ -345,8 +420,9 @@ const PosScreen: React.FC = () => {
       {checkoutStep === 'CASH_HELPER' && (
         <PosCashModal
           totalAmount={totalAmount}
+          isProcessing={isProcessingSale}
           onClose={() => setCheckoutStep('SELECT_METHOD')}
-          onConfirm={(received, change) => handleFinishTransaction(received)}
+          onConfirm={(received) => handleFinishTransaction(received)}
         />
       )}
 
@@ -355,18 +431,28 @@ const PosScreen: React.FC = () => {
           method={activeTab.paymentMethod}
           totalAmount={totalAmount}
           clientName={activeTab.clientName}
+          isProcessing={isProcessingSale}
           onClose={() => setCheckoutStep('SELECT_METHOD')}
           onConfirmPayment={(ref) => handleFinishTransaction(ref)}
         />
       )}
 
-      {checkoutStep === 'SUCCESS' && (
+      {checkoutStep === 'SUCCESS' && lastSaleData && (
         <PosSuccessModal
-          saleId={lastSaleId}
-          totalAmount={totalAmount}
-          paymentMethod={activeTab.paymentMethod}
-          cashierName={user?.name || 'Cajero Principal'}
+          saleData={lastSaleData}
           onFinish={handleDismissSuccess}
+        />
+      )}
+
+      {showCloseAllModal && (
+        <PosCloseAllConfirmModal
+          tabsCount={tabs.length}
+          onClose={() => setShowCloseAllModal(false)}
+          onConfirm={() => {
+            closeAllTabs();
+            setShowCloseAllModal(false);
+            showNotification('🧹 Todas las pestañas han sido cerradas.');
+          }}
         />
       )}
 

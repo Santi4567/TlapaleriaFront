@@ -231,6 +231,27 @@ export const usePosTabs = () => {
     updateActiveTab(tab => ({ ...tab, paymentMethod: method }));
   };
 
+  // ============================================================================
+  // NUEVO: Cerrar todas las pestañas de golpe y reiniciar a Ticket #1
+  // ============================================================================
+  const closeAllTabs = () => {
+    const resetTab: SaleTab = {
+      id: `tab-principal-1-${Date.now()}`,
+      title: 'Ticket #1',
+      type: 'SALE',
+      tabNumber: 1,
+      isRemovable: false,
+      clientName: 'Público en General',
+      paymentMethod: 'CASH',
+      items: [],
+      discount: 0,
+      createdAt: Date.now()
+    };
+    
+    setTabs([resetTab]);
+    setActiveTabId(resetTab.id);
+  };
+
   return {
     tabs,
     activeTab,
@@ -245,6 +266,7 @@ export const usePosTabs = () => {
     removeItem,
     clearActiveTabItems,
     setClientName,
-    setPaymentMethod
+    setPaymentMethod,
+    closeAllTabs
   };
 };

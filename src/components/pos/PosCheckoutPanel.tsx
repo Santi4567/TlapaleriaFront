@@ -19,11 +19,16 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
 }) => {
   const isQuote = activeTab.type === 'QUOTE';
 
-  // Cálculos matemáticos
+  // Cálculos matemáticos con IVA INCLUIDO (Desglose hacia adentro)
   const totalItems = activeTab.items.reduce((acc, i) => acc + i.quantity, 0);
-  const subtotal = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
-  const iva = subtotal * 0.16;
-  const total = subtotal + iva - (activeTab.discount || 0);
+  
+  // Suma bruta de precios con IVA incluido menos descuento
+  const grossSum = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
+  const total = Math.max(0, grossSum - (activeTab.discount || 0));
+
+  // Extracción matemática del IVA (El producto ya lo trae dentro)
+  const subtotal = total / 1.16;
+  const iva = total - subtotal;
 
   return (
     <div className="w-full xl:w-96 bg-[#121212] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between flex-shrink-0 shadow-xl">
@@ -53,19 +58,19 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
         </div>
       </div>
 
-      {/* SECCIÓN INTERMEDIA: DESGLOSE MATEMÁTICO */}
+      {/* SECCIÓN INTERMEDIA: DESGLOSE CON IVA INCLUIDO */}
       <div className="my-4 space-y-2.5 bg-black/40 p-4 rounded-2xl border border-gray-800/80 font-mono">
         <div className="flex justify-between text-xs text-gray-400">
           <span>Artículos Totales:</span>
           <span className="font-bold text-white">{totalItems}</span>
         </div>
         <div className="flex justify-between text-xs text-gray-400">
-          <span>Subtotal:</span>
-          <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+          <span>Subtotal (Neto):</span>
+          <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between text-xs text-gray-400">
-          <span>I.V.A. (16%):</span>
-          <span>${iva.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+          <span>I.V.A. (Incluido 16%):</span>
+          <span>${iva.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         
         <div className="border-t border-gray-800 pt-2.5 flex justify-between items-baseline">
@@ -104,9 +109,13 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
               type="button"
               onClick={onProcessSale}
               disabled={activeTab.items.length === 0}
-              className="w-full py-4 bg-brand-orange hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-lg rounded-2xl transition-all shadow-[0_0_25px_rgba(255,90,0,0.3)] flex items-center justify-center space-x-2"
+              title="Procesar cobro del ticket actual [Teclado: F8 o F12]"
+              className="w-full py-4 bg-brand-orange hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-lg rounded-2xl transition-all shadow-[0_0_25px_rgba(255,90,0,0.3)] flex items-center justify-center space-x-3 group border-2 border-brand-orange"
             >
               <span>💰 Cobrar Ahora</span>
+              <kbd className="bg-black/80 text-brand-orange group-hover:bg-black group-hover:text-brand-orange px-2.5 py-1 rounded-lg font-mono text-xs font-black shadow-inner border border-brand-orange/40">
+                F8
+              </kbd>
             </button>
 
             <button
