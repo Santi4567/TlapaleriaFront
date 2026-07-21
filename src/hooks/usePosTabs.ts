@@ -1,39 +1,78 @@
 // src/hooks/usePosTabs.ts
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext'; // 2.1 Separador de almacenamiento local entre usuarios
 import { SaleTab, CartItem, PaymentMethod } from '../types/pos';
 
 const STORAGE_KEY = 'tlapaleria_leo_pos_tabs';
 const ACTIVE_TAB_KEY = 'tlapaleria_leo_active_tab';
 
+// 1. DEFINIMOS EL LÍMITE MÁXIMO DE CUENTAS SIMULTÁNEAS
+export const MAX_TABS = 10;
+
 export const usePosTabs = () => {
-  // 1. Inicializar pestañas garantizando siempre al menos el Ticket #1 inamovible
+
+  const { user } = useAuth(); // 2.2. OBTENEMOS EL USUARIO ACTIVO
+
+  // 2.3. LLAVE DINÁMICA: Si el usuario tiene ID 1, la llave será 'pos_tabs_user_1'
+  const storageKey = `pos_tabs_user_${user?.id || 'guest'}`;
+
+  // Función auxiliar para crear un Ticket #1 en limpio
+  const createDefaultTab = (): SaleTab => ({
+    id: `tab-init-${Date.now()}`,
+    title: 'Ticket #1',
+    type: 'SALE',
+    tabNumber: 1,
+    isRemovable: false,
+    clientName: 'Público en General',
+    paymentMethod: 'CASH',
+    items: [],
+    discount: 0,
+    createdAt: Date.now()
+  });
+
+  // 4. INICIALIZAMOS LEYENDO LA CAJA FUERTE DEL USUARIO ACTIVO
   const [tabs, setTabs] = useState<SaleTab[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { 
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) { console.error(e); }
-    }
-    
-    // Pestaña base por defecto (Permanente y blindada)
-    return [{
-      id: 'tab-principal-1',
-      title: 'Ticket #1',
-      type: 'SALE',
-      tabNumber: 1,
-      isRemovable: false, // No se puede borrar
-      clientName: 'Público en General',
-      paymentMethod: 'CASH',
-      items: [],
-      discount: 0,
-      createdAt: Date.now()
-    }];
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : [createDefaultTab()];
   });
 
   const [activeTabId, setActiveTabId] = useState<string>(() => {
-    return localStorage.getItem(ACTIVE_TAB_KEY) || (tabs[0]?.id ?? '');
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed[0]?.id || '';
+    }
+    return '';
   });
+
+  // ============================================================================
+  // EFECTO 1: CAMBIO DE USUARIO (LOGIN / LOGOUT)
+  // Cuando entra un usuario diferente, cargamos SU propio carrito de localStorage
+  // ============================================================================
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsedTabs: SaleTab[] = JSON.parse(saved);
+      setTabs(parsedTabs);
+      setActiveTabId(parsedTabs[0]?.id || '');
+    } else {
+      // Si este usuario nunca había vendido en esta máquina, le creamos su Ticket #1
+      const newDefault = [createDefaultTab()];
+      setTabs(newDefault);
+      setActiveTabId(newDefault[0].id);
+    }
+  }, [storageKey]); // Se ejecuta cada vez que cambia storageKey (es decir, cuando cambia user.id)
+
+  // ============================================================================
+  // EFECTO 2: GUARDADO AUTOMÁTICO EN TIEMPO REAL
+  // Cada vez que el vendedor agrega un producto o cambia de pestaña, se guarda en SU llave
+  // ============================================================================
+  useEffect(() => {
+    if (tabs.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(tabs));
+    }
+  }, [tabs, storageKey]);
+
 
   // Sincronización automática con localStorage
   useEffect(() => {
@@ -64,20 +103,22 @@ export const usePosTabs = () => {
   };
 
   // ============================================================================
-  // ACCIONES DE GESTIÓN DE VENTANAS / TABS
+  // FUNCIÓN PARA CREAR NUEVA PESTAÑA CON LÍMITE DE SEGURIDAD
   // ============================================================================
+  const createNewTab = (type: 'SALE' | 'QUOTE'): boolean => {
+    // 2. BLINDAJE: Si ya alcanzamos el máximo, bloqueamos y avisamos al usuario
+    if (tabs.length >= MAX_TABS) {
+      return false; 
+    }
 
-  const createNewTab = (type: 'SALE' | 'QUOTE' = 'SALE', customTitle?: string) => {
-    const nextNum = getLowestAvailableNumber(type, tabs);
-    const newId = `tab-${type.toLowerCase()}-${nextNum}-${Date.now()}`;
-
+    const nextNumber = tabs.length > 0 ? Math.max(...tabs.map(t => t.tabNumber)) + 1 : 1;
     const newTab: SaleTab = {
-      id: newId,
-      title: customTitle || (type === 'QUOTE' ? `Presupuesto #${nextNum}` : `Ticket #${nextNum}`),
+      id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      title: type === 'QUOTE' ? `Presupuesto #${nextNumber}` : `Ticket #${nextNumber}`,
       type,
-      tabNumber: nextNum,
+      tabNumber: nextNumber,
       isRemovable: true,
-      clientName: type === 'QUOTE' ? 'Cliente Presupuesto' : 'Público en General',
+      clientName: 'Público en General',
       paymentMethod: 'CASH',
       items: [],
       discount: 0,
@@ -85,8 +126,10 @@ export const usePosTabs = () => {
     };
 
     setTabs(prev => [...prev, newTab]);
-    setActiveTabId(newId);
+    setActiveTabId(newTab.id);
+    return true;
   };
+
 
   // ÚNICA DECLARACIÓN DE closeTab CON REGLA DE NEGOCIO BLINDADA
   const closeTab = (idToRemove: string, e?: React.MouseEvent) => {

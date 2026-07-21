@@ -129,6 +129,19 @@ const PosPaymentMethodModal: React.FC<PosPaymentMethodModalProps> = ({
           <kbd className="bg-black/50 text-gray-400 px-2 py-0.5 rounded font-mono text-xs font-black">Esc</kbd>
         </button>
 
+        {/* BOTÓN SALIDA RÁPIDA: PONER EN ESPERA */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose(); // Cierra el modal
+            // Puedes disparar un evento o simplemente decirle al cajero que presione F1
+          }}
+          className="w-full py-3.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 font-extrabold rounded-2xl border border-yellow-500/30 transition-all flex items-center justify-center space-x-2 shadow-sm mt-3"
+        >
+          <span>⏳ Poner Cuenta en Espera / Atender Siguiente</span>
+          <kbd className="bg-black/60 text-yellow-400 px-2 py-0.5 rounded font-mono text-xs font-black border border-yellow-500/40">F9</kbd>
+        </button>
+
       </div>
     </div>
   );

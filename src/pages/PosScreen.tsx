@@ -1,7 +1,7 @@
 // src/pages/PosScreen.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usePosTabs } from '../hooks/usePosTabs';
+import { usePosTabs, MAX_TABS } from '../hooks/usePosTabs';
 import { usePosSearch } from '../hooks/usePosSearch';
 import { Product, ProductPresentation } from '../types/product';
 import { PaymentMethod } from '../types/pos';
@@ -22,6 +22,8 @@ import PosSuccessModal from '../components/pos/PosSuccessModal';
 import PosClearConfirmModal from '../components/pos/PosClearConfirmModal';
 import PosProductInfoModal from '../components/pos/PosProductInfoModal';
 import PosCloseAllConfirmModal from '../components/pos/PosCloseAllConfirmModal';
+import PosTabLimitModal from '../components/pos/PosTabLimitModal';
+
 
 type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'SUCCESS';
 
@@ -58,6 +60,7 @@ const PosScreen: React.FC = () => {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showCloseAllModal, setShowCloseAllModal] = useState(false);
+  const [showTabLimitModal, setShowTabLimitModal] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('NONE');
   
   // Estados para la API de Ventas
@@ -106,27 +109,47 @@ const PosScreen: React.FC = () => {
   }, [results]);
 
   // ============================================================================
-  // ATAJOS DE TECLADO GLOBALES (F1, F2, F3, F4, F8/F12)
+  // ATAJOS DE TECLADO GLOBALES (F1, F2, F3, F4, F8/F12, F9)
   // ============================================================================
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // 1. REGLA DE ORO ANTI-SPAM: Si la tecla se mantiene presionada, IGNORAR
       if (e.repeat) return;
 
-      // Ignorar si hay un modal crítico abierto
-      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || selectedProduct || infoProduct) return;
+      // ======================================================================
+      // SALIDA DE EMERGENCIA: PONER EN ESPERA Y ATENDER SIGUIENTE [F9]
+      // (SE EVALÚA PRIMERO para poder escapar de las pantallas de cobro)
+      // ======================================================================
+      if (e.key === 'F9') {
+        e.preventDefault();
+        // 1. Si hay algún modal de cobro abierto, lo cerramos instantáneamente
+        if (checkoutStep !== 'NONE') {
+          setCheckoutStep('NONE');
+        }
+        // 2. Si la pestaña actual tiene productos, creamos una nueva para no mezclar
+        if (activeTab.items.length > 0) {
+          if (Date.now() - lastTabCreateTime.current < 300) return;
+          lastTabCreateTime.current = Date.now();
+          createNewTab('SALE');
+          showNotification(`⏳ "${activeTab.title}" en espera. Atendiendo nueva cuenta...`);
+        }
+        return; // Salimos para no evaluar el resto de teclas
+      }
+
+      // 2. MURO DE CONCRETO: Ignorar el resto de atajos si hay un modal crítico abierto
+      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || showTabLimitModal || selectedProduct || infoProduct) return;
 
       if (e.key === 'F1') {
         e.preventDefault();
         if (Date.now() - lastTabCreateTime.current < 300) return;
         lastTabCreateTime.current = Date.now();
-        createNewTab('SALE');
+        handleCreateNewTab('SALE'); // <-- USAMOS LA ENVOLTURA
       } else if (e.key === 'F2') {
         e.preventDefault();
         if (Date.now() - lastTabCreateTime.current < 300) return;
         lastTabCreateTime.current = Date.now();
-        createNewTab('QUOTE');
-      } else if (e.key === 'F3') {
+        handleCreateNewTab('QUOTE'); // <-- USAMOS LA ENVOLTURA
+      }else if (e.key === 'F3') {
         e.preventDefault();
         if (searchInputRef.current) {
           searchInputRef.current.focus();
@@ -139,11 +162,10 @@ const PosScreen: React.FC = () => {
         }
       } 
       // ======================================================================
-      // NUEVO: ATAJO PARA COBRAR AHORA [F8 o F12]
+      // ATAJO: PARA COBRAR AHORA [F8 o F12]
       // ======================================================================
       else if (e.key === 'F8' || e.key === 'F12') {
         e.preventDefault();
-        // Solo abrimos el menú de cobro si es una Venta Directa y hay artículos en la tabla
         if (activeTab.type === 'SALE' && activeTab.items.length > 0) {
           setCheckoutStep('SELECT_METHOD');
         }
@@ -153,7 +175,7 @@ const PosScreen: React.FC = () => {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
-  
+
   // ============================================================================
   // NAVEGACIÓN POR TECLADO EN LA LISTA DESPLEGABLE DE RESULTADOS
   // ============================================================================
@@ -249,6 +271,15 @@ const PosScreen: React.FC = () => {
     setPaymentMethod('CASH');            // Resetea método de pago
   };
 
+  // NUEVO: Envoltura que intercepta cuando se intenta crear una pestaña y abre el modal si se llegó al límite
+  const handleCreateNewTab = (type: 'SALE' | 'QUOTE'): boolean => {
+    const success = createNewTab(type);
+    if (!success) {
+      setShowTabLimitModal(true);
+    }
+    return success;
+  };
+
   return (
     // CONTENEDOR PRINCIPAL CON min-h-0 PARA SCROLL RESPONSIVO PERFECTO
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden min-h-0">
@@ -268,7 +299,7 @@ const PosScreen: React.FC = () => {
         tabs={tabs}
         activeTabId={activeTabId}
         onSelectTab={setActiveTabId}
-        onNewTab={createNewTab}
+        onNewTab={handleCreateNewTab}
         onCloseTab={closeTab}
         onReorderTabs={reorderTabs}
         onClearTable={() => setShowClearModal(true)}
@@ -455,6 +486,15 @@ const PosScreen: React.FC = () => {
           }}
         />
       )}
+      
+      {/* MODAL DE ADVERTENCIA DE LÍMITE DE PESTAÑAS */}
+      {showTabLimitModal && (
+        <PosTabLimitModal
+          maxTabs={MAX_TABS}
+          onClose={() => setShowTabLimitModal(false)}
+        />
+      )}
+      
 
     </div>
   );
