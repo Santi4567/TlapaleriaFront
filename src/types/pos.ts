@@ -13,6 +13,8 @@ export interface CartItem {
   quantity: number;
   stockFactor: number;
   maxStock: number;
+  isInventoryTracked?: boolean; 
+  allowFractions?: boolean;     
   brand?: string | null;
   location?: string | null;
   unitOfMeasure: string;

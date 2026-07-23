@@ -224,7 +224,8 @@ const PosScreen: React.FC = () => {
   };
 
   // CÁLCULO DE TOTAL
-  const totalAmount = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0) * 1.16 - (activeTab.discount || 0);
+  const grossSum = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
+  const totalAmount = Math.max(0, grossSum - (activeTab.discount || 0));
 
   // MANEJADORES DEL FLUJO DE COBRO
   const handleSelectPaymentMethod = (method: PaymentMethod) => {

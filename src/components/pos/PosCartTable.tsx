@@ -25,9 +25,9 @@ const PosCartTable: React.FC<PosCartTableProps> = ({ items, onUpdateQty, onRemov
         <thead className="bg-[#1a1a1a] text-gray-400 font-bold uppercase text-xs sticky top-0 z-10 border-b border-gray-800">
           <tr>
             <th className="py-3.5 px-3 w-[15%]">SKU / Marca</th>
-            <th className="py-3.5 px-3 w-[35%]">Producto / Presentación</th>
-            <th className="py-3.5 px-3 w-[15%] text-center">Ubicación</th>
-            <th className="py-3.5 px-3 w-[18%] text-center">Cantidad</th>
+            <th className="py-3.5 px-3 w-[33%]">Producto / Presentación</th>
+            <th className="py-3.5 px-3 w-[13%] text-center">Ubicación</th>
+            <th className="py-3.5 px-3 w-[22%] text-center">Cantidad</th>
             <th className="py-3.5 px-3 w-[12%] text-right">Subtotal</th>
             <th className="py-3.5 px-2 w-[5%] text-center"></th>
           </tr>
@@ -35,8 +35,27 @@ const PosCartTable: React.FC<PosCartTableProps> = ({ items, onUpdateQty, onRemov
         <tbody className="divide-y divide-gray-800/60 font-medium">
           {items.map((item, idx) => {
             const subtotal = item.unitPrice * item.quantity;
+            
+            // =================================================================
+            // REGLAS DINÁMICAS POR ARTÍCULO
+            // =================================================================
+            const allowFractions = item.allowFractions !== false;
+            const isTracked = item.isInventoryTracked !== false;
+
+            // Si se rastrea stock, calculamos tope. Si es venta libre, le damos 999999
+            const rawMax = isTracked && item.maxStock !== undefined && item.stockFactor
+              ? (item.maxStock / item.stockFactor)
+              : 999999;
+            
+            const maxAllowedUnits = allowFractions 
+              ? parseFloat(rawMax.toFixed(2)) 
+              : Math.floor(rawMax);
+
+            const isAtMax = isTracked && item.quantity >= (maxAllowedUnits - 0.001);
+            const isAtMin = item.quantity <= (allowFractions ? 0.01 : 1);
+
             return (
-              <tr key={`${item.productId}-${item.presentationId}`} className="hover:bg-gray-800/30 transition-colors group">
+              <tr key={`${item.productId}-${item.presentationId}-${idx}`} className="hover:bg-gray-800/30 transition-colors group">
                 
                 {/* SKU Y MARCA */}
                 <td className="py-3.5 px-3 truncate">
@@ -48,7 +67,7 @@ const PosCartTable: React.FC<PosCartTableProps> = ({ items, onUpdateQty, onRemov
                   </span>
                 </td>
 
-                {/* PRODUCTO Y PRESENTACIÓN CON TRUNCADO PARA NOMBRES LARGOS */}
+                {/* PRODUCTO Y PRESENTACIÓN */}
                 <td className="py-3.5 px-3">
                   <p className="font-extrabold text-white text-sm truncate cursor-help" title={item.name}>
                     {item.name}
@@ -68,46 +87,86 @@ const PosCartTable: React.FC<PosCartTableProps> = ({ items, onUpdateQty, onRemov
                   {item.location || '—'}
                 </td>
 
-                {/* CANTIDAD Y BOTONES */}
-                <td className="py-3.5 px-3">
-                  <div className="flex items-center justify-center space-x-1 bg-black/60 p-1 rounded-xl border border-gray-800 w-max mx-auto">
+                {/* CANTIDAD ADAPTABLE A ENTEROS O DECIMALES */}
+                <td className="py-3.5 px-3 text-center">
+                  <div className="flex items-center justify-center space-x-1 bg-black/60 p-1 rounded-xl border border-gray-800 w-max mx-auto shadow-inner">
+                    
+                    {/* BOTÓN MENOS (-) */}
                     <button
                       type="button"
-                      onClick={() => onUpdateQty(idx, item.quantity - 1)}
-                      className="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-black transition-colors flex items-center justify-center text-xs"
+                      disabled={isAtMin}
+                      onClick={() => {
+                        // Si NO permite fracciones, resta 1. Si permite y es > 1, resta 1. Si es < 1, resta 0.1
+                        const step = !allowFractions ? 1 : (item.quantity > 1 ? 1 : 0.1);
+                        const nextVal = Math.max(allowFractions ? 0.01 : 1, parseFloat((item.quantity - step).toFixed(2)));
+                        onUpdateQty(idx, nextVal);
+                      }}
+                      className="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black transition-colors flex items-center justify-center text-xs"
                     >-</button>
                     
+                    {/* INPUT ADAPTABLE */}
                     <input
                       type="number"
-                      step="any"
+                      step={allowFractions ? "any" : "1"}
+                      min={allowFractions ? "0.001" : "1"}
+                      max={isTracked ? maxAllowedUnits : undefined}
                       value={item.quantity}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) onUpdateQty(idx, val);
+                        const val = allowFractions ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          const cappedQty = isTracked ? Math.min(val, maxAllowedUnits) : val;
+                          onUpdateQty(idx, allowFractions ? parseFloat(cappedQty.toFixed(2)) : cappedQty);
+                        }
                       }}
-                      className="w-12 bg-transparent text-center font-mono font-bold text-white text-sm focus:outline-none"
+                      onKeyDown={(e) => {
+                        const blocked = ['e', 'E', '-', '+'];
+                        if (!allowFractions) blocked.push('.', ',');
+                        if (blocked.includes(e.key)) e.preventDefault();
+                      }}
+                      className={`w-14 bg-transparent text-center font-mono font-bold text-sm focus:outline-none transition-colors ${
+                        isAtMax ? 'text-brand-orange font-black' : 'text-white'
+                      }`}
                     />
                     
+                    {/* BOTÓN MÁS (+) */}
                     <button
                       type="button"
-                      onClick={() => onUpdateQty(idx, item.quantity + 1)}
-                      className="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-black transition-colors flex items-center justify-center text-xs"
+                      disabled={isAtMax}
+                      onClick={() => {
+                        if (!isAtMax) {
+                          const step = !allowFractions ? 1 : (item.quantity >= 1 ? 1 : 0.1);
+                          const rawNext = item.quantity + step;
+                          const nextVal = isTracked ? Math.min(maxAllowedUnits, parseFloat(rawNext.toFixed(2))) : parseFloat(rawNext.toFixed(2));
+                          onUpdateQty(idx, nextVal);
+                        }
+                      }}
+                      className={`w-7 h-7 rounded-lg font-black transition-all flex items-center justify-center text-xs ${
+                        isAtMax 
+                          ? 'bg-gray-900 text-gray-600 opacity-40 cursor-not-allowed border border-gray-800' 
+                          : 'bg-brand-orange hover:bg-orange-500 text-black shadow-[0_0_10px_rgba(255,90,0,0.3)]'
+                      }`}
                     >+</button>
                   </div>
+
+                  {/* ETIQUETA DE TOPE O LIBRE */}
+                  <span className={`block text-[10px] font-mono mt-1 ${
+                    isAtMax ? 'text-brand-orange font-bold animate-pulse' : 'text-gray-500'
+                  }`}>
+                    {!isTracked ? '♾️ Venta Libre' : isAtMax ? `⚠️ Tope máx: ${maxAllowedUnits} u.` : `Máx: ${maxAllowedUnits} u.`}
+                  </span>
                 </td>
 
-                {/* SUBTOTAL MULTIPLICADO */}
+                {/* SUBTOTAL */}
                 <td className="py-3.5 px-3 text-right font-mono font-black text-white text-sm truncate">
                   ${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </td>
 
-                {/* ACCIÓN ELIMINAR */}
+                {/* ELIMINAR */}
                 <td className="py-3.5 px-2 text-center">
                   <button
                     type="button"
                     onClick={() => onRemove(idx)}
                     className="text-gray-600 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
-                    title="Eliminar artículo del ticket"
                   >✕</button>
                 </td>
 

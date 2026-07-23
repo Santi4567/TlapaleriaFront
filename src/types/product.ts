@@ -40,7 +40,8 @@ export interface Product {
   currentStock: number;
   presentations: ProductPresentation[];
   isActive: boolean;
-  isInventoryTracked: boolean;
+  isInventoryTracked?: boolean; // <--  ¿Se controla stock?
+  allowFractions?: boolean;     // <--  ¿Permite decimales?
   hasExpiration: boolean;
   nextExpirationDate: string | null;
   createdAt: string;
