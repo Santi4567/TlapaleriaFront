@@ -11,8 +11,8 @@ interface ProductTableProps {
   onPageChange: (newPage: number) => void;
   onRetry: () => void;
   onEdit: (product: Product) => void;
-  searchTerm: string;      // NUEVO
-  onClearSearch: () => void; // NUEVO
+  searchTerm: string;
+  onClearSearch: () => void;
 }
 
 const ProductTable: React.FC<ProductTableProps> = ({
@@ -31,13 +31,16 @@ const ProductTable: React.FC<ProductTableProps> = ({
     <div className="flex-1 overflow-hidden border border-gray-800 rounded-2xl bg-[#1a1a1a] flex flex-col relative">
       <div className="overflow-x-auto flex-1 custom-scrollbar">
         
-        <table className="w-full min-w-[1200px] text-left text-base text-brand-text">
+        {/* Aumentamos el min-w a 1300px para acomodar la nueva columna cómodamente */}
+        <table className="w-full min-w-[1300px] text-left text-base text-brand-text">
           <thead className="bg-[#121212] text-brand-text-muted sticky top-0 z-10 shadow-md">
             <tr>
               <th className="px-6 py-5 font-bold text-lg w-[150px]">SKU / Código</th>
-              <th className="px-6 py-5 font-bold text-lg w-[350px]">Producto</th>
-              <th className="px-6 py-5 font-bold text-lg w-[150px]">Marca</th>
-              <th className="px-6 py-5 font-bold text-lg w-[150px]">Stock Base</th>
+              <th className="px-6 py-5 font-bold text-lg w-[320px]">Producto</th>
+              <th className="px-6 py-5 font-bold text-lg w-[140px]">Marca</th>
+              <th className="px-6 py-5 font-bold text-lg w-[140px]">Stock Base</th>
+              {/* NUEVA COLUMNA */}
+              <th className="px-6 py-5 font-bold text-lg text-center w-[140px]">Tipo Venta</th>
               <th className="px-6 py-5 font-bold text-lg">Presentaciones (Venta)</th>
               <th className="px-6 py-5 font-bold text-lg text-center w-[120px] sticky right-0 bg-[#121212]">Acciones</th>
             </tr>
@@ -46,7 +49,8 @@ const ProductTable: React.FC<ProductTableProps> = ({
             
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
+                {/* Actualizado a colSpan={7} */}
+                <td colSpan={7} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <svg className="animate-spin h-12 w-12 text-brand-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -58,7 +62,8 @@ const ProductTable: React.FC<ProductTableProps> = ({
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
+                {/* Actualizado a colSpan={7} */}
+                <td colSpan={7} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <p className="text-white text-xl font-bold">{error}</p>
                     <button onClick={onRetry} className="mt-4 px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-bold">
@@ -69,7 +74,8 @@ const ProductTable: React.FC<ProductTableProps> = ({
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
+                {/* Actualizado a colSpan={7} */}
+                <td colSpan={7} className="px-6 py-20 text-center">
                    <span className="text-gray-500 text-lg font-medium">No se encontraron productos.</span>
                    {searchTerm && (
                       <p className="text-brand-orange mt-2 text-base cursor-pointer hover:underline" onClick={onClearSearch}>
@@ -86,17 +92,17 @@ const ProductTable: React.FC<ProductTableProps> = ({
                   </td>
                   
                   <td className="px-6 py-5">
-                    <div className="max-w-[320px]">
+                    <div className="max-w-[300px]">
                       <p className="font-extrabold text-white text-lg truncate cursor-help" title={product.name}>
                         {product.name}
                       </p>
-                      <p className="text-sm text-gray-400 mt-1 truncate" title={product.location}>
+                      <p className="text-sm text-gray-400 mt-1 truncate" title={product.location || ''}>
                         {product.location}
                       </p>
                     </div>
                   </td>
                   
-                  <td className="px-6 py-5 font-medium text-lg truncate max-w-[150px]" title={product.brand}>
+                  <td className="px-6 py-5 font-medium text-lg truncate max-w-[140px]" title={product.brand || ''}>
                     {product.brand}
                   </td>
                   
@@ -112,6 +118,25 @@ const ProductTable: React.FC<ProductTableProps> = ({
                         </span> 
                         <span className="text-base text-gray-400 ml-1">{product.unitOfMeasure}</span>
                       </>
+                    )}
+                  </td>
+
+                  {/* NUEVA CELDA: INDICADOR DE FRACCIONES */}
+                  <td className="px-6 py-5 text-center whitespace-nowrap">
+                    {product.allowFractions ? (
+                      <span 
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-green-500/10 text-green-400 border border-green-500/30 shadow-sm cursor-help"
+                        title="Permite venta por peso o volumen con decimales (Ej. 1.5 KG, 0.75 M)"
+                      >
+                        ⚡ Fraccionable
+                      </span>
+                    ) : (
+                      <span 
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-800/80 text-gray-400 border border-gray-700 cursor-help"
+                        title="Venta estrictamente en números enteros (Ej. 1, 2, 3 PZA)"
+                      >
+                        🔒 Enteros
+                      </span>
                     )}
                   </td>
                   

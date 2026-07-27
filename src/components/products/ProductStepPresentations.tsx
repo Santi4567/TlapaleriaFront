@@ -1,4 +1,3 @@
-// src/components/products/ProductStepPresentations.tsx
 import React, { useState } from 'react';
 import { CreatePresentationRequest } from '../../types/product';
 import { Supplier } from '../../types/supplier';
@@ -112,7 +111,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     setIsVariantFormOpen(true); 
   };
 
-  // ACCIÓN DE BORRADO DE VARIANTES HIJAS
   const handleDeletePresentation = (idx: number) => {
     setPresentations(presentations.filter((_, i) => i !== idx));
     if (editingIndex === idx) {
@@ -221,8 +219,10 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
           </div>
         </div>
 
-        {/* SECCIÓN 2: INVENTARIO, FACTOR PADRE Y CADUCIDAD */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* SECCIÓN 2: INVENTARIO, CADUCIDAD Y FRACCIONES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* CARD 1: CONTROL DE STOCK */}
           <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -238,7 +238,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
               </button>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex space-x-2">
               <div className="w-1/3">
                 <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">Unidad Base</label>
                 <input 
@@ -248,7 +248,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 />
               </div>
               <div className="w-1/3">
-                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">Stock Inicial</label>
+                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">Stock Ini.</label>
                 <input 
                   type="number" step="any" disabled={!baseProduct.isInventoryTracked}
                   value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
@@ -257,7 +257,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 />
               </div>
               <div className="w-1/3">
-                <label className="block text-[10px] text-brand-orange font-bold mb-1 uppercase">Factor Padre</label>
+                <label className="block text-[10px] text-brand-orange font-bold mb-1 uppercase">Factor</label>
                 <input 
                   type="number" step="any" 
                   value={baseProduct.baseStockFactor === "" ? "" : baseProduct.baseStockFactor}
@@ -268,6 +268,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
             </div>
           </div>
 
+          {/* CARD 2: CADUCIDAD */}
           <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -292,11 +293,37 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 value={baseProduct.nextExpirationDate}
                 onChange={handleDateChange}
                 maxLength={10}
-                className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-3 py-2 font-mono tracking-widest ${!baseProduct.hasExpiration ? 'opacity-30 cursor-not-allowed' : ''}`}
+                className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-3 py-2 font-mono tracking-widest text-sm ${!baseProduct.hasExpiration ? 'opacity-30 cursor-not-allowed' : ''}`}
               />
-              <p className="text-[10px] text-gray-500 mt-1">Formato: Año-Mes-Día (Ej. 2027-12-31)</p>
+              <p className="text-[10px] text-gray-500 mt-1">Año-Mes-Día (Ej. 2027-12-31)</p>
             </div>
           </div>
+
+          {/* CARD 3: PERMITIR FRACCIONES (NUEVO) */}
+          <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-white font-bold text-lg">¿Permite Fracciones?</h4>
+                <p className="text-xs text-gray-400">Ventas con decimales</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBaseProduct({...baseProduct, allowFractions: !baseProduct.allowFractions})}
+                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${baseProduct.allowFractions ? 'bg-brand-orange' : 'bg-gray-700'}`}
+              >
+                <span className={`inline-block h-6 w-6 transform rounded-full bg-black transition-transform ${baseProduct.allowFractions ? 'translate-x-9' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <div className="bg-black/30 p-3 rounded-lg border border-gray-800/80">
+              <p className="text-[11px] text-gray-400 leading-snug">
+                {baseProduct.allowFractions
+                  ? '⚡ Habilitado: Ideal para productos por volumen o peso como Cables (0.5m) o Clavos (1.25kg).'
+                  : '🔒 Deshabilitado: Para artículos de venta únicamente en números enteros como Piezas o Bultos.'}
+              </p>
+            </div>
+          </div>
+
         </div>
 
         {/* SECCIÓN 3: CAPTURA DE VARIANTES (HIJOS) OCULTA / EXPANDIBLE */}
@@ -327,10 +354,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                  <span className="bg-brand-orange/20 text-brand-orange text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                    {editingIndex !== null ? 'Editando Variante' : 'Creando Nueva Variante'}
                  </span>
-                 {/* FIX: le faltaba type="button". Sin ese atributo, un <button>
-                     dentro de un <form> se comporta como type="submit" por
-                     defecto y puede disparar un envío/recarga nativa del
-                     formulario en vez de solo cerrar este panel. */}
                  <button type="button" onClick={() => { setIsVariantFormOpen(false); setEditingIndex(null); }} className="text-gray-500 hover:text-white font-bold text-sm">✕ Cerrar</button>
               </div>
 
@@ -384,7 +407,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 </div>
               </div>
 
-              {/* BOTONES DEL FORMULARIO CON ACCIÓN DE ELIMINAR BLINDADA */}
               <div className="flex justify-between items-center pt-4 border-t border-gray-800/50">
                 {editingIndex !== null ? (
                   <button 
@@ -422,7 +444,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
         <div className="sticky top-0 space-y-4">
           <h3 className="text-xl font-bold text-white border-b border-gray-800 pb-2 mb-4">Resumen de Ventas</h3>
           
-          {/* CARD 1: PRESENTACIÓN PADRE (PURA BASE, NO ELIMINABLE) */}
           <div 
             onClick={() => scrollToSection('seccion-base')} 
             className="cursor-pointer p-4 bg-brand-orange/10 border border-brand-orange/40 rounded-2xl hover:bg-brand-orange/20 transition-all shadow-md group relative"
@@ -438,7 +459,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
             </div>
           </div>
 
-          {/* CARDS 2...N: VARIANTES HIJAS (CON BORRADO RÁPIDO) */}
           {presentations.map((p, idx) => (
             <div 
               key={idx} 
@@ -449,7 +469,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{idx + 2}. Variante</p>
                  <div className="flex items-center space-x-2">
                    <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">✎ Editar</span>
-                   {/* BOTÓN RÁPIDO DE ELIMINAR EN LA TARJETA */}
                    <button 
                      type="button"
                      onClick={(e) => { e.stopPropagation(); handleDeletePresentation(idx); }}

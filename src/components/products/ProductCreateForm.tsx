@@ -3,15 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supplierService } from '../../services/supplierService';
 import { Supplier } from '../../types/supplier';
-import { CreateProductRequest, CreatePresentationRequest } from '../../types/product';
 import ProductStepBase from './ProductStepBase';
 import ProductStepPresentations from './ProductStepPresentations';
 import ProductStepSummary from './ProductStepSummary';
 
 interface ProductCreateFormProps {
-  productToEdit?: any | null; // NUEVO: Si trae datos, es Edición
+  productToEdit?: any | null; 
   onCancel: () => void;
-  onSave: (productData: any, isEditing: boolean) => Promise<void>; // Avisa si es update o create
+  onSave: (productData: any, isEditing: boolean) => Promise<void>; 
   onDeactivate?: () => Promise<void>;
   isSubmitting: boolean;
   error: string | null;
@@ -19,7 +18,7 @@ interface ProductCreateFormProps {
 
 const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, onCancel, onSave, onDeactivate, isSubmitting, error }) => {
   const { user } = useAuth();
-  const isEditing = !!productToEdit; // Variable booleana rápida
+  const isEditing = !!productToEdit; 
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -37,6 +36,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
   const initialBaseProduct = {
     id: null,
     internalCode: '',
+    originalInternalCode: '', // <-- NUEVO: Para saber cuál era su clave al empezar a editar
     barcode: '',
     name: '',
     description: '',
@@ -47,36 +47,32 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
     profitMargin: "",
     baseSalePrice: "",
     baseStockFactor: "1",
-    basePresentationId: null, // ID de la presentación padre para el backend
+    basePresentationId: null, 
     unitOfMeasure: 'PZA',
     isInventoryTracked: true,
+    allowFractions: false,
     initialStock: "",
     hasExpiration: false,
     nextExpirationDate: ''
   };
 
   const [baseProduct, setBaseProduct] = useState<any>(initialBaseProduct);
-  const [presentations, setPresentations] = useState<any[]>([]); // Usamos any[] porque ahora pueden tener Id
+  const [presentations, setPresentations] = useState<any[]>([]); 
 
-  // ==============================================================
-  // ADAPTADOR DE DATOS: Mapea la respuesta del GET al formulario
-  // ==============================================================
   useEffect(() => {
     if (productToEdit) {
-      // 1. Formatear la fecha (cortamos el T00:00:00)
       let formattedDate = '';
       if (productToEdit.nextExpirationDate) {
         formattedDate = productToEdit.nextExpirationDate.split('T')[0];
       }
 
-      // 2. Extraer el padre (índice 0) y los hijos (índice 1 en adelante)
       const basePres = productToEdit.presentations?.length > 0 ? productToEdit.presentations[0] : null;
       const childPresentations = productToEdit.presentations?.length > 1 ? productToEdit.presentations.slice(1) : [];
 
-      // 3. Cargar el estado
       setBaseProduct({
         id: productToEdit.id,
         internalCode: productToEdit.internalCode || '',
+        originalInternalCode: productToEdit.internalCode || '', // <-- GUARDAMOS SU CLAVE INTACTA AQUÍ
         barcode: productToEdit.barcode || '',
         name: productToEdit.name || '',
         description: productToEdit.description || '',
@@ -90,12 +86,12 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
         basePresentationId: basePres ? basePres.id : null,
         unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
         isInventoryTracked: productToEdit.isInventoryTracked,
-        initialStock: productToEdit.currentStock || "", // Mostramos el actual, pero el backend lo ignorará al guardar
+        allowFractions: productToEdit.allowFractions || false,
+        initialStock: productToEdit.currentStock || "", 
         hasExpiration: productToEdit.hasExpiration,
         nextExpirationDate: formattedDate
       });
 
-      // Mapeamos a los hijos guardando sus IDs
       setPresentations(childPresentations.map((p: any) => ({
         id: p.id,
         name: p.name,
@@ -148,7 +144,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       return;
     }
 
-    // Armamos la presentación Padre (añadiendo ID si es edición)
     const basePresentation = {
       id: baseProduct.basePresentationId || 0,
       name: baseProduct.name || "Presentación Base",
@@ -158,7 +153,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       stockFactor: Number(baseProduct.baseStockFactor || 1)
     };
 
-    // Armamos a los hijos asegurando que tengan un ID (0 si son nuevos en la edición)
     const formattedChildren = presentations.map(p => ({
       id: p.id || 0,
       name: p.name,
@@ -170,7 +164,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
 
     const finalPresentations = [basePresentation, ...formattedChildren];
 
-    // Payload dinámico (CreateProductDto vs UpdateProductDto)
     const payload: any = {
       internalCode: baseProduct.internalCode.trim(),
       barcode: baseProduct.barcode?.trim() || "",
@@ -183,6 +176,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       profitMargin: Number(baseProduct.profitMargin || 0),
       unitOfMeasure: baseProduct.unitOfMeasure.trim().toUpperCase(),
       isInventoryTracked: baseProduct.isInventoryTracked,
+      allowFractions: baseProduct.allowFractions,
       hasExpiration: baseProduct.hasExpiration,
       nextExpirationDate: baseProduct.hasExpiration && baseProduct.nextExpirationDate.length === 10
         ? new Date(baseProduct.nextExpirationDate).toISOString() 
@@ -190,7 +184,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       presentations: finalPresentations
     };
 
-    // Si NO estamos editando, agregamos el InitialStock al DTO
     if (!isEditing) {
       payload.initialStock = baseProduct.isInventoryTracked ? Number(baseProduct.initialStock || 0) : 0;
     }
@@ -227,12 +220,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
           </p>
         </div>
         
-        {/* FIX: antes el paso a paso (span's) vivía solo; onCancel nunca llegaba
-            a los pasos 2 y 3, así que una vez que avanzabas no había forma de
-            cerrar el formulario completo y volver al catálogo (Vista 1 con
-            Activos/Inactivos). Este botón está fuera del "if (step === X)" así
-            que se ve SIEMPRE, sin importar el paso, y dispara el mismo onCancel
-            que ya usa el Paso 1. */}
         <div className="flex items-center gap-3 flex-shrink-0">
           <div className="flex items-center space-x-2 bg-black/50 p-2 rounded-2xl border border-gray-800">
             <span className={`px-4 py-2 rounded-xl font-bold transition-all text-sm ${step === 1 ? 'bg-brand-orange text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>1. Identificación</span>

@@ -244,5 +244,32 @@ export const productService = {
       console.error('Error al obtener productos próximos a caducar:', error);
       return null;
     }
+  },
+
+  // 9. VERIFICACIÓN DE CLAVE INTERNA ÚNICA EN TIEMPO REAL
+  async checkInternalCode(
+    token: string, 
+    code: string
+  ): Promise<{ success: boolean; message: string; data: { existe: boolean; nombreProducto: string | null } } | null> {
+    try {
+      const encodedCode = encodeURIComponent(code);
+      const response = await fetch(`${API_URL}/check-internal-code?code=${encodedCode}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/plain, application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error al verificar el código interno "${code}":`, error);
+      return null;
+    }
   }
 };

@@ -80,6 +80,7 @@ export interface CreateProductRequest {
   profitMargin?: number | null;
   unitOfMeasure: string;
   isInventoryTracked: boolean;
+  allowFractions: boolean;
   initialStock: number;
   hasExpiration: boolean;
   nextExpirationDate?: string | null;
@@ -111,6 +112,7 @@ export interface UpdateProductRequest {
   profitMargin?: number | null;
   unitOfMeasure: string;
   isInventoryTracked: boolean;
+  allowFractions: boolean;
   hasExpiration: boolean;
   nextExpirationDate?: string | null;
   // Nota: No se incluye initialStock ni currentStock por regla de negocio
