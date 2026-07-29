@@ -1,3 +1,4 @@
+// src/components/products/ProductStepPresentations.tsx
 import React, { useState } from 'react';
 import { CreatePresentationRequest } from '../../types/product';
 import { Supplier } from '../../types/supplier';
@@ -37,6 +38,9 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
   const [hasCustomCode, setHasCustomCode] = useState(false);
   const [hasCustomBarcode, setHasCustomBarcode] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  
+  // Constante para saber si estamos en modo edición
+  const isEditing = !!baseProduct.id;
 
   const handleNumberChange = (field: string, value: string, isFloat: boolean = false, isBase: boolean = false) => {
     const targetSet = isBase ? setBaseProduct : setCurrentPres;
@@ -247,15 +251,28 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                   className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-2 py-2 font-bold uppercase text-sm"
                 />
               </div>
+              
+              {/* === PROTECCIÓN DE STOCK EN MODO EDICIÓN === */}
               <div className="w-1/3">
-                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">Stock Ini.</label>
+                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">
+                  {isEditing ? 'Stock Actual' : 'Stock Ini.'}
+                </label>
                 <input 
-                  type="number" step="any" disabled={!baseProduct.isInventoryTracked}
+                  type="number" step="any" 
+                  disabled={isEditing || !baseProduct.isInventoryTracked}
                   value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
-                  onChange={e => handleNumberChange("initialStock", e.target.value, true, true)}
-                  className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-2 py-2 font-mono font-bold text-sm ${!baseProduct.isInventoryTracked ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  onChange={e => {
+                    // Evita que se altere el estado de initialStock si estamos editando
+                    if (!isEditing) {
+                      handleNumberChange("initialStock", e.target.value, true, true);
+                    }
+                  }}
+                  className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-2 py-2 font-mono font-bold text-sm ${(isEditing || !baseProduct.isInventoryTracked) ? 'opacity-30 cursor-not-allowed bg-black/50' : ''}`}
+                  title={isEditing ? "El inventario se modifica desde el módulo de Entradas/Salidas" : ""}
                 />
               </div>
+              {/* ========================================= */}
+
               <div className="w-1/3">
                 <label className="block text-[10px] text-brand-orange font-bold mb-1 uppercase">Factor</label>
                 <input 

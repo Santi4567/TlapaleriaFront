@@ -215,9 +215,12 @@ const PosScreen: React.FC = () => {
       unitPrice: selectedPresentation.price,
       stockFactor: selectedPresentation.stockFactor,
       maxStock: selectedProduct.currentStock,
+      isInventoryTracked: selectedProduct.isInventoryTracked,
+      allowFractions: selectedProduct.allowFractions,
       brand: selectedProduct.brand,
       location: selectedProduct.location,
       unitOfMeasure: selectedProduct.unitOfMeasure
+      
     } as any, qty);
     setSelectedProduct(null);
     setSelectedPresentation(null);

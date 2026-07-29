@@ -36,21 +36,24 @@ const PosCartTable: React.FC<PosCartTableProps> = ({ items, onUpdateQty, onRemov
           {items.map((item, idx) => {
             const subtotal = item.unitPrice * item.quantity;
             
-            // =================================================================
+// =================================================================
             // REGLAS DINÁMICAS POR ARTÍCULO
             // =================================================================
-            const allowFractions = item.allowFractions !== false;
+            // Lectura estricta: si el API manda true, permite fracciones.
+            const allowFractions = item.allowFractions === true;
+            // Si viene explícitamente como false, apagamos el rastreo (Venta Libre).
             const isTracked = item.isInventoryTracked !== false;
 
-            // Si se rastrea stock, calculamos tope. Si es venta libre, le damos 999999
+            // Si se rastrea stock, calculamos tope. Si es venta libre (isTracked = false), el tope es Infinito.
             const rawMax = isTracked && item.maxStock !== undefined && item.stockFactor
               ? (item.maxStock / item.stockFactor)
-              : 999999;
+              : Infinity;
             
-            const maxAllowedUnits = allowFractions 
-              ? parseFloat(rawMax.toFixed(2)) 
-              : Math.floor(rawMax);
+            const maxAllowedUnits = isTracked
+              ? (allowFractions ? parseFloat(rawMax.toFixed(2)) : Math.floor(rawMax))
+              : Infinity;
 
+            // Si isTracked es false, isAtMax siempre será false y el botón + nunca se bloqueará.
             const isAtMax = isTracked && item.quantity >= (maxAllowedUnits - 0.001);
             const isAtMin = item.quantity <= (allowFractions ? 0.01 : 1);
 

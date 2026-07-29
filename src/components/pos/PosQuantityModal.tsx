@@ -1,5 +1,5 @@
 // src/components/pos/PosQuantityModal.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Product, ProductPresentation } from '../../types/product';
 
 interface PosQuantityModalProps {
@@ -61,6 +61,21 @@ const PosQuantityModal: React.FC<PosQuantityModalProps> = ({
       e.preventDefault();
     }
   };
+
+  // ============================================================================
+  // ESCUDO PARA LA TECLA ESCAPE
+  // ============================================================================
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-6 animate-in fade-in duration-150">
