@@ -9,7 +9,8 @@ import {
 } from '../types/product';
 
 // Ajusta la URL base a la configuración de tu entorno en Tauri / Vite
-const API_URL = 'http://tlapalerialeo.local:7000/api/Products';
+// Usamos la variable de entorno VITE_API_URL
+const API_URL = `${import.meta.env.VITE_API_URL}/Products`;
 
 export const productService = {
   
