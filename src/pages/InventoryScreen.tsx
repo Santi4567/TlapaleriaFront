@@ -30,6 +30,9 @@ const InventoryScreen: React.FC = () => {
     isOpen: false, type: 'success', text: ''
   });
 
+  //Estados 
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Atajo F3
@@ -99,13 +102,14 @@ const InventoryScreen: React.FC = () => {
     }
   };
 
-  const handleMovementSubmit = async (movementType: 1 | 2, quantity: number, notes: string) => {
+  // Cambiamos de 1 | 2 a 1 | 2 | 3 | 4
+  const handleMovementSubmit = async (movementType: 1 | 2 | 3 | 4, quantity: number, notes: string) => {
     if (!selectedProduct) return;
     setIsProcessing(true);
 
     const response = await inventoryService.registerMovement(token, {
       productId: selectedProduct.id,
-      movementType,
+      movementType, // Aquí se manda el 1, 2, 3 o 4 al backend
       quantity,
       notes
     });
@@ -114,11 +118,15 @@ const InventoryScreen: React.FC = () => {
 
     if (response?.success) {
       setSelectedProduct(prev => prev ? { ...prev, currentStock: response.data.newStock } : null);
+      
       setMsgModal({ 
         isOpen: true, 
         type: 'success', 
         text: `Movimiento registrado. Nuevo stock: ${response.data.newStock}` 
       });
+
+      setRefreshCounter(prev => prev + 1); 
+
     } else {
       setMsgModal({ 
         isOpen: true, 
@@ -215,9 +223,11 @@ const InventoryScreen: React.FC = () => {
 
         {/* TABLA DE ÚLTIMOS MOVIMIENTOS */}
         <div className="flex-1 bg-[#1c1c1c] border border-gray-800 rounded-2xl overflow-hidden z-10 flex flex-col">
-          <InventoryTable />
+          <InventoryTable refreshTrigger={refreshCounter} />
         </div>
       </div>
+
+      
 
       {/* =========================================================
           PANEL DE AJUSTE LATERAL
@@ -229,6 +239,7 @@ const InventoryScreen: React.FC = () => {
         onSubmit={handleMovementSubmit}
         onError={(msg) => setMsgModal({ isOpen: true, type: 'warning', text: msg })}
         isProcessing={isProcessing}
+        refreshTrigger={refreshCounter}
       />
 
       {/* =========================================================
