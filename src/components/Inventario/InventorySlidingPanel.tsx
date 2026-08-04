@@ -16,7 +16,6 @@ interface InventorySlidingPanelProps {
 const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({ 
   isOpen, product, onClose, onSubmit, onError, isProcessing, refreshTrigger
 }) => {
-  // ESTADO PARA MOSTRAR/OCULTAR EL FORMULARIO
   const [showForm, setShowForm] = useState(false);
 
   const [movementType, setMovementType] = useState<1 | 2 | 3 | 4>(1);
@@ -27,7 +26,7 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
     setMovementType(1);
     setQuantity('');
     setNotes('');
-    setShowForm(false); // Ocultar form al cambiar de producto
+    setShowForm(false); 
   }, [product]);
 
   if (!product) return null;
@@ -57,7 +56,7 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
       ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
       {/* ENCABEZADO */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-[#121212] rounded-t-3xl">
+      <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-[#121212] rounded-t-3xl z-20 relative">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
@@ -78,7 +77,7 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
           {/* BOTÓN PARA ABRIR FORMULARIO */}
           <button 
             onClick={() => setShowForm(!showForm)}
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-md flex items-center gap-2
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-md flex items-center gap-2 relative z-50
               ${showForm ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-brand-orange hover:bg-orange-600 text-white'}`}
           >
             {showForm ? '✖ Cancelar Ajuste' : '➕ Agregar Movimiento'}
@@ -86,16 +85,18 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
         </div>
       </div>
 
-      {/* CONTENIDO (Flex con animación de expansión) */}
-      <div className="flex-1 overflow-hidden p-6 flex flex-col md:flex-row gap-0">
+      {/* CONTENIDO PRINCIPAL RELATIVO PARA POSICIONAMIENTO ABSOLUTO */}
+      <div className="flex-1 overflow-hidden p-6 relative flex">
         
-        {/* FORMULARIO ANIMADO (Se comprime y expande su ancho y opacidad) */}
+        {/* =========================================================
+            FORMULARIO FLOTANTE (Optimizado para GPU)
+            Usamos absolute y translate-x en lugar de cambiar anchos.
+            ========================================================= */}
         <div 
-          className={`transition-all duration-500 ease-in-out overflow-hidden flex-shrink-0 
-            ${showForm ? 'max-w-[400px] opacity-100 pr-6' : 'max-w-0 opacity-0 pr-0'}`}
+          className={`absolute top-6 bottom-6 left-6 z-30 transform-gpu transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+            ${showForm ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-[110%] opacity-0 pointer-events-none'}`}
         >
-          {/* Un contenedor fijo interno para que los inputs no se "aplasten" durante la animación */}
-          <div className="w-[350px] bg-[#1c1c1c] p-6 rounded-2xl border border-gray-800 h-fit">
+          <div className="w-[360px] bg-[#1c1c1c]/95 backdrop-blur-md p-6 rounded-2xl border-2 border-brand-orange/50 h-full overflow-y-auto custom-scrollbar shadow-[20px_0_30px_-15px_rgba(0,0,0,0.5)]">
             <h3 className="text-lg font-bold text-white mb-6">Nuevo Registro</h3>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -119,15 +120,25 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full bg-[#121212] border border-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-orange transition-colors resize-none h-24 text-sm" placeholder="Especifica la razón del movimiento..." required />
               </div>
 
-              <button type="submit" disabled={isProcessing} className={`w-full py-3 mt-2 rounded-xl text-white font-bold text-lg transition-colors shadow-lg ${isProcessing ? 'bg-gray-600 cursor-not-allowed' : 'bg-brand-orange hover:bg-orange-600'}`}>
+              <button type="submit" disabled={isProcessing} className={`w-full py-3 mt-4 rounded-xl text-white font-bold text-lg transition-colors shadow-lg ${isProcessing ? 'bg-gray-600 cursor-not-allowed' : 'bg-brand-orange hover:bg-orange-600'}`}>
                 {isProcessing ? 'Guardando...' : 'Confirmar'}
               </button>
             </form>
           </div>
         </div>
 
-        {/* KARDEX CON EL REFRESH TRIGGER CONECTADO (Tomará todo el ancho cuando el form esté oculto) */}
-        <InventoryKardexTable product={product} refreshTrigger={refreshTrigger} />
+        {/* =========================================================
+            KARDEX DE FONDO
+            Ocupa siempre todo el espacio disponible. No se traba porque no se redimensiona.
+            ========================================================= */}
+        <div className="w-full h-full relative">
+           {/* Pequeño velo oscuro opcional que resalta el formulario cuando está abierto */}
+           <div 
+             className={`absolute inset-0 bg-black/40 z-20 rounded-2xl transition-opacity duration-300 pointer-events-none
+             ${showForm ? 'opacity-100' : 'opacity-0'}`} 
+           />
+           <InventoryKardexTable product={product} refreshTrigger={refreshTrigger} />
+        </div>
 
       </div>
     </div>
