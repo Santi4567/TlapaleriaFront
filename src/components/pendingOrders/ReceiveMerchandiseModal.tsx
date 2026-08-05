@@ -8,7 +8,7 @@ const MOCK_PENDING_ORDERS = [
     product: { 
       id: 2, internalCode: 'CAB-12-R', name: 'Cable THW Calibre 12 Rojo', 
       supplierPrice: 900, profitMargin: 35, unitOfMeasure: 'METRO',
-      isInventoryTracked: true, allowFractions: true,
+      isInventoryTracked: false, allowFractions: true,
       presentations: [
         { id: 4, name: 'Metro', price: 15, stockFactor: 1 },
         { id: 5, name: 'Rollo 100m', price: 1350, stockFactor: 100 }
@@ -33,7 +33,7 @@ const MOCK_PENDING_ORDERS = [
     product: { 
       id: 4, internalCode: 'BRO-2', name: 'Brocha de 2 pulgadas', 
       supplierPrice: 15, profitMargin: 40, unitOfMeasure: 'PIEZA',
-      isInventoryTracked: false, allowFractions: false,
+      isInventoryTracked: false, allowFractions: false, // <-- PRODUCTO NO INVENTARIABLE
       presentations: [
         { id: 7, name: 'Pieza', price: 25, stockFactor: 1 }
       ]
@@ -65,7 +65,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   const qtyInputRef = useRef<HTMLInputElement>(null);
   const supplierPriceInputRef = useRef<HTMLInputElement>(null);
 
-  // Inicializar al abrir
+  // Inicializar lista al abrir
   useEffect(() => {
     if (isOpen && supplierId) {
       const supplierOrders = MOCK_PENDING_ORDERS.filter(o => o.supplierId === supplierId);
@@ -73,11 +73,22 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
       setCurrentIndex(0);
       setIsFinished(supplierOrders.length === 0);
       resetCaptureFields();
-      setTimeout(() => qtyInputRef.current?.focus(), 150);
     }
   }, [isOpen, supplierId]);
 
   const currentOrder = ordersList[currentIndex];
+
+  // Enfoque Inteligente: Salta cantidad si el producto es "No Inventariable"
+  useEffect(() => {
+    if (isOpen && currentOrder && !isFinished) {
+      if (!currentOrder.product.isInventoryTracked) {
+        // Salto directo a modificar precios (y activamos el modo edición automáticamente si se desea, o solo el foco)
+        setTimeout(() => supplierPriceInputRef.current?.focus(), 150);
+      } else {
+        setTimeout(() => qtyInputRef.current?.focus(), 150);
+      }
+    }
+  }, [isOpen, currentIndex, currentOrder, isFinished, isEditingPrice]);
 
   const resetCaptureFields = () => {
     setReceivedQty('');
@@ -95,13 +106,9 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     const presentations = currentOrder.product.presentations;
 
     if (presentations && presentations.length > 0) {
-      // 1. Encontrar el factor mayor (El "Padre" por el que se está pagando el supplierPrice)
       const maxFactor = Math.max(...presentations.map(p => p.stockFactor));
-      
-      // 2. Costo real por unidad mínima
       const costPerUnit = cost / maxFactor; 
 
-      // 3. Calcular precio de venta sugerido para cada presentación
       const updatedPrices: Record<number, string> = {};
       presentations.forEach(pres => {
         const presCost = costPerUnit * pres.stockFactor;
@@ -173,7 +180,6 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     if (currentIndex < ordersList.length - 1) {
       setCurrentIndex(prev => prev + 1);
       resetCaptureFields();
-      setTimeout(() => qtyInputRef.current?.focus(), 100);
     } else {
       setIsFinished(true);
     }
@@ -233,12 +239,21 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                       <span className="bg-orange-500 text-black px-1.5 py-0.5 rounded text-[10px]">▶</span> Piezas que llegaron *
                     </label>
                     <input 
-                      ref={qtyInputRef} type="number" value={receivedQty} onChange={(e) => setReceivedQty(e.target.value)} onKeyDown={handleQtyKeyDown}
-                      disabled={!currentOrder.product.isInventoryTracked} step={currentOrder.product.allowFractions ? "0.01" : "1"}
-                      className={`w-full border-2 font-black text-4xl rounded-2xl py-4 px-6 outline-none transition-colors ${!currentOrder.product.isInventoryTracked ? 'bg-[#0a0a0a] border-gray-800 text-gray-600 cursor-not-allowed' : 'bg-[#121212] border-gray-700 text-white focus:border-orange-500 shadow-inner placeholder-gray-700'}`} 
-                      placeholder={!currentOrder.product.isInventoryTracked ? "N/A" : "0"}
+                      ref={qtyInputRef} 
+                      type={!currentOrder.product.isInventoryTracked ? "text" : "number"} // Texto si no se rastrea para poder mostrar la leyenda
+                      value={!currentOrder.product.isInventoryTracked ? '' : receivedQty} 
+                      onChange={(e) => setReceivedQty(e.target.value)} 
+                      onKeyDown={handleQtyKeyDown}
+                      disabled={!currentOrder.product.isInventoryTracked} 
+                      step={currentOrder.product.allowFractions ? "0.01" : "1"}
+                      className={`w-full border-2 font-black rounded-2xl py-4 px-6 outline-none transition-colors 
+                        ${!currentOrder.product.isInventoryTracked 
+                          ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 cursor-not-allowed text-lg text-center' 
+                          : 'bg-[#121212] border-gray-700 text-white text-4xl focus:border-orange-500 shadow-inner placeholder-gray-700'
+                        }`} 
+                      placeholder={!currentOrder.product.isInventoryTracked ? "Producto no inventariable" : "0"}
                     />
-                    {!currentOrder.product.isInventoryTracked && <div className="text-[10px] text-gray-500 mt-3 font-bold uppercase tracking-wider">ⓘ Inventario no rastreado.</div>}
+                    {!currentOrder.product.isInventoryTracked && <div className="text-[10px] text-gray-500 mt-3 font-bold uppercase tracking-wider text-center">ⓘ El stock no se actualizará para este producto.</div>}
                     {currentOrder.product.isInventoryTracked && !currentOrder.product.allowFractions && <div className="text-[10px] text-gray-500 mt-3 font-bold uppercase tracking-wider">ⓘ Solo números enteros.</div>}
                   </div>
                 </div>
