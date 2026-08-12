@@ -1,12 +1,15 @@
 // src/screens/PendingOrdersScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import PendingOrdersTable from '../components/pendingOrders/PendingOrdersTable';
-import PendingOrderModal from '../components/pendingOrders/PendingOrderModal';
 import ConfirmActionModal from '../components/pendingOrders/ConfirmActionModal';
 import PendingOrdersFilters, { PendingFiltersState } from '../components/pendingOrders/PendingOrdersFilters';
 import ReceiveSupplierModal from '../components/pendingOrders/ReceiveSupplierModal'; 
 import ReceiveMerchandiseModal from '../components/pendingOrders/ReceiveMerchandiseModal'; 
-import PlaceOrderModal from '../components/pendingOrders/PlaceOrderModal'; // <-- IMPORTAMOS EL NUEVO MODAL
+import PlaceOrderModal from '../components/pendingOrders/PlaceOrderModal'; 
+
+// IMPORTAMOS LOS DOS NUEVOS MODALES
+import CatalogOrderModal from '../components/pendingOrders/CatalogOrderModal';
+import CustomOrderModal from '../components/pendingOrders/CustomOrderModal';
 
 import { pendingOrderService } from '../services/pendingOrderService';
 import { supplierService } from '../services/supplierService';
@@ -22,7 +25,10 @@ const PendingOrdersScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // ================= ESTADOS DE LOS MODALES DE EDICIÓN/CREACIÓN =================
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [selectedOrderToEdit, setSelectedOrderToEdit] = useState<PendingOrder | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -36,7 +42,7 @@ const PendingOrdersScreen: React.FC = () => {
     setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 4500);
   };
 
-  // ================= ESTADOS DE LOS FLUJOS MASIVOS (PEDIR Y RECIBIR) =================
+  // ================= ESTADOS DE LOS FLUJOS MASIVOS =================
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierModalAction, setSupplierModalAction] = useState<'receive' | 'placeOrder' | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
@@ -140,7 +146,16 @@ const PendingOrdersScreen: React.FC = () => {
     }
   };
 
-  // ================= CONTROLADORES DE LOS FLUJOS MASIVOS =================
+  // Rutas de edición desde la tabla
+  const handleEditOrder = (order: PendingOrder) => {
+    setSelectedOrderToEdit(order);
+    if (order.productId) {
+      setIsCatalogModalOpen(true);
+    } else {
+      setIsCustomModalOpen(true);
+    }
+  };
+
   const handleOpenReceiveFlow = () => {
     setSupplierModalAction('receive');
     setIsSupplierModalOpen(true);
@@ -155,7 +170,6 @@ const PendingOrdersScreen: React.FC = () => {
     setSelectedSupplierId(supplierId);
     setIsSupplierModalOpen(false);
     
-    // Ruteo inteligente dependiendo de qué botón originó la acción
     if (supplierModalAction === 'receive') {
       setIsReceiveCardsModalOpen(true);
     } else if (supplierModalAction === 'placeOrder') {
@@ -185,13 +199,6 @@ const PendingOrdersScreen: React.FC = () => {
           <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] border-2 bg-[#1a1a1a] ${
             toast.type === 'success' ? 'border-green-500/30' : 'border-red-500/30'
           }`}>
-            <div className={`p-2 rounded-full ${toast.type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-              {toast.type === 'success' ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              )}
-            </div>
             <p className="text-white font-bold text-base tracking-wide">{toast.message}</p>
           </div>
         </div>
@@ -203,41 +210,56 @@ const PendingOrdersScreen: React.FC = () => {
         
         <div className="flex gap-3">
           
-          {/* 1. NUEVO BOTÓN: LEVANTAR PEDIDOS */}
           <button 
             onClick={handleOpenPlaceOrderFlow} 
             className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-5 rounded-xl transition-colors flex items-center shadow-[0_0_15px_rgba(147,51,234,0.2)]"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
             Levantar Pedidos
           </button>
 
-          {/* 2. BOTÓN: RECIBIR MERCANCÍA */}
           <button 
             onClick={handleOpenReceiveFlow} 
             className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded-xl transition-colors flex items-center shadow-[0_0_15px_rgba(37,99,235,0.2)]"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
             Recibir Mercancía
           </button>
 
-          {/* 3. BOTÓN: AGREGAR FALTANTE */}
-          <button 
-            onClick={() => { setSelectedOrderToEdit(null); setIsModalOpen(true); }} 
-            className="bg-orange-500 hover:bg-orange-600 text-black font-bold py-2 px-5 rounded-xl transition-colors flex items-center shadow-[0_0_15px_rgba(255,90,0,0.2)]"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-            Agregar a Libreta
-          </button>
+          {/* NUEVO BOTÓN CON MENÚ DESPLEGABLE */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)} 
+              className="bg-orange-500 hover:bg-orange-600 text-black font-bold py-2 px-5 rounded-xl transition-colors flex items-center shadow-[0_0_15px_rgba(255,90,0,0.2)]"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+              Anotar en Libreta
+            </button>
+
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-3 w-72 bg-[#1a1a1a] border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <button
+                  onClick={() => { setIsMenuOpen(false); setSelectedOrderToEdit(null); setIsCatalogModalOpen(true); }}
+                  className="w-full text-left px-5 py-4 text-white hover:bg-gray-800 font-bold border-b border-gray-700 flex items-center gap-3 transition-colors"
+                >
+                  <span className="text-xl">📕</span> Anotar producto existente
+                </button>
+                <button
+                   onClick={() => { setIsMenuOpen(false); setSelectedOrderToEdit(null); setIsCustomModalOpen(true); }}
+                  className="w-full text-left px-5 py-4 text-white hover:bg-gray-800 font-bold flex items-center gap-3 transition-colors"
+                >
+                  <span className="text-xl">✨</span> Encargo fuera de catálogo
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <PendingOrdersFilters suppliersList={suppliersList} isLoading={isLoading} onFiltersChange={setAppliedFilters} />
-      <PendingOrdersTable items={items} onEdit={(order) => { setSelectedOrderToEdit(order); setIsModalOpen(true); }} onChangeStatus={requestChangeStatus} />
       
-      <PendingOrderModal 
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} 
-        onSave={handleSaveOrder} onChangeStatus={executeChangeStatus} initialData={selectedOrderToEdit} 
+      <PendingOrdersTable 
+        items={items} 
+        onEdit={handleEditOrder} 
+        onChangeStatus={requestChangeStatus} 
       />
 
       <ConfirmActionModal 
@@ -246,33 +268,26 @@ const PendingOrdersScreen: React.FC = () => {
         onConfirm={confirmTableChangeStatus} onCancel={() => { setConfirmModalOpen(false); setOrderToChange(null); }}
       />
 
-      {/* ================= MODALES DEL FLUJO MASIVO ================= */}
-      
-      {/* Buscador de Proveedores (Multiusos) */}
-      <ReceiveSupplierModal 
-        isOpen={isSupplierModalOpen} 
-        onClose={() => { setIsSupplierModalOpen(false); setSupplierModalAction(null); }} 
-        onSelectSupplier={handleSupplierSelected} 
-      />
-      
-      {/* Modal A: Recibir Mercancía */}
-      <ReceiveMerchandiseModal 
-        isOpen={isReceiveCardsModalOpen} 
-        supplierId={selectedSupplierId} 
-        onClose={() => setIsReceiveCardsModalOpen(false)} 
+      {/* ================= FLUJO MASIVO ================= */}
+      <ReceiveSupplierModal isOpen={isSupplierModalOpen} onClose={() => { setIsSupplierModalOpen(false); setSupplierModalAction(null); }} onSelectSupplier={handleSupplierSelected} />
+      <ReceiveMerchandiseModal isOpen={isReceiveCardsModalOpen} supplierId={selectedSupplierId} onClose={() => setIsReceiveCardsModalOpen(false)} />
+      <PlaceOrderModal isOpen={isPlaceOrderModalOpen} supplierId={selectedSupplierId} onClose={(hasChanges) => { setIsPlaceOrderModalOpen(false); if (hasChanges) loadOrders(); }} />
+
+      {/* ================= NUEVOS MODALES ================= */}
+      <CatalogOrderModal 
+        isOpen={isCatalogModalOpen} 
+        onClose={() => setIsCatalogModalOpen(false)} 
+        onSave={handleSaveOrder} 
+        onChangeStatus={executeChangeStatus} 
+        initialData={selectedOrderToEdit} 
       />
 
-      {/* Modal B: Levantar Pedidos al Proveedor */}
-      <PlaceOrderModal
-        isOpen={isPlaceOrderModalOpen}
-        supplierId={selectedSupplierId}
-        onClose={(hasChanges) => {
-          setIsPlaceOrderModalOpen(false);
-          // SI HUBO CAMBIOS EN EL MODAL, RECARGAMOS LA TABLA AUTOMÁTICAMENTE
-          if (hasChanges) {
-            loadOrders();
-          }
-        }}
+      <CustomOrderModal 
+        isOpen={isCustomModalOpen} 
+        onClose={() => setIsCustomModalOpen(false)} 
+        onSave={handleSaveOrder} 
+        onChangeStatus={executeChangeStatus} 
+        initialData={selectedOrderToEdit} 
       />
 
     </div>
