@@ -19,6 +19,9 @@ export interface PendingOrderProduct {
   internalCode: string;
   name: string;
   brand: string;
+  location?: string;
+  currentStock?: number;
+  isInventoryTracked?: boolean;
 }
 
 export interface PendingOrderUser {
@@ -29,8 +32,9 @@ export interface PendingOrderUser {
 
 export interface PendingOrder {
   id: number;
-  productId: number;
-  product: PendingOrderProduct;
+  productId: number | null;
+  product: PendingOrderProduct | null;
+  newProductName?: string | null;
   supplierId: number;
   supplier: Supplier;
   userId: number;

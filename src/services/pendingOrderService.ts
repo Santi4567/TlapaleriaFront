@@ -3,7 +3,8 @@ import {
   UpdatePendingOrderRequest,
   APIPendingOrderResponse,
   APIPendingOrdersListResponse,
-  changeOrderStatus
+  changeOrderStatus,
+  processMerchandiseReceipt
 } from '../types/pendingOrder';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -92,6 +93,22 @@ export const pendingOrderService = {
       return await response.json();
     } catch (error) { 
       console.error("Error al cambiar el estado:", error);
+      return null; 
+    }
+  },
+
+  // Recibir mercancia 
+  processMerchandiseReceipt: async (token: string, id: number, payload: any): Promise<APIPendingOrderResponse | null> => {
+    try {
+      const response = await fetch(`${API_URL}/PendingOrders/${id}/receive`, { // <-- Ajusta la URL de tu endpoint aquí
+        method: 'POST',
+        headers: { 'accept': 'text/plain', 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      return await response.json();
+    } catch (error) { 
+      console.error("Error al procesar recepción:", error);
       return null; 
     }
   }

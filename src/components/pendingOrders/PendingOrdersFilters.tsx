@@ -17,18 +17,16 @@ interface PendingOrdersFiltersProps {
 }
 
 const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersList, onFiltersChange, isLoading }) => {
-  // ESTADO PARA CONTROLAR EL ACORDEÓN DE FILTROS SECUNDARIOS
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Estados locales
   const [dateMode, setDateMode] = useState<'day' | 'range'>('day');
   const [localStartDate, setLocalStartDate] = useState('');
   const [localEndDate, setLocalEndDate] = useState('');
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [localSupplierFilter, setLocalSupplierFilter] = useState('');
+  // Por defecto arranca en 0 (Pendientes)
   const [localStatusFilter, setLocalStatusFilter] = useState('0');
 
-  // Funciones de formateo de fecha
   const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>, currentValue: string) => {
     const newValue = e.target.value;
     if (newValue.length < currentValue.length) { setter(newValue); return; }
@@ -46,7 +44,6 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
     return `${year}-${month}-${day}`;
   };
 
-  // Notificar al componente padre cuando cambien los filtros
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       onFiltersChange({
@@ -72,7 +69,6 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
   return (
     <div className="p-5 border border-gray-800 bg-[#1a1a1a] rounded-2xl flex flex-col gap-5 mb-6 shadow-sm transition-all duration-300 ease-in-out">
       
-      {/* Título de la sección */}
       <div>
         <h3 className="text-white font-bold text-lg flex items-center gap-2">
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
@@ -80,7 +76,6 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
         </h3>
       </div>
       
-      {/* 1. Buscador Principal + Botón Toggle */}
       <div className="flex w-full gap-3 items-end">
         <div className="flex flex-col flex-1">
           <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Buscar Producto / Clave</label>
@@ -110,11 +105,9 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
         </button>
       </div>
 
-      {/* 2. Filtros Secundarios (Se despliegan al hacer clic) */}
       {showAdvancedFilters && (
         <div className="flex flex-wrap items-end gap-4 border-t border-gray-800/50 pt-5 animate-in slide-in-from-top-2 fade-in duration-200">
           
-          {/* Proveedor */}
           <div className="flex flex-col flex-1 min-w-[160px]">
             <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Proveedor</label>
             <select value={localSupplierFilter} onChange={(e) => setLocalSupplierFilter(e.target.value)} className="bg-[#121212] border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none w-full transition-colors" style={{ colorScheme: 'dark' }}>
@@ -123,18 +116,19 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
             </select>
           </div>
 
-          {/* Estado */}
           <div className="flex flex-col flex-1 min-w-[140px]">
             <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Estado</label>
             <select value={localStatusFilter} onChange={(e) => setLocalStatusFilter(e.target.value)} className="bg-[#121212] border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none w-full font-bold transition-colors" style={{ colorScheme: 'dark' }}>
               <option value="0" className="text-orange-400">⏳ Pendientes</option>
-              <option value="2" className="text-green-400">✅ Completados</option>
-              <option value="1" className="text-red-400">❌ Cancelados</option>
+              {/* NUEVO ESTADO: PEDIDO */}
+              <option value="1" className="text-purple-400">📦 Pedidos</option>
+              {/* ESTADOS CERRADOS */}
+              <option value="3" className="text-green-400">✅ Completados</option>
+              <option value="2" className="text-red-400">❌ Cancelados</option>
               <option value="-1" className="text-white">📋 Todos</option>
             </select>
           </div>
 
-          {/* Fecha */}
           <div className="flex flex-col gap-2 p-3 bg-[#121212] rounded-xl border border-gray-800">
             <div className="flex justify-between items-center gap-4">
               <div className="flex bg-[#1c1c1c] rounded-lg p-1 border border-gray-800 w-fit">
@@ -150,7 +144,6 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
             </div>
           </div>
 
-          {/* Botón Limpiar & Spinner */}
           <div className="flex gap-2 ml-auto mb-1">
             <button type="button" onClick={handleClearFilters} className="px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-bold rounded-xl transition-colors">
               Limpiar
