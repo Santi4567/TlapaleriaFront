@@ -36,12 +36,11 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   const qtyInputRef = useRef<HTMLInputElement>(null);
   const supplierPriceInputRef = useRef<HTMLInputElement>(null);
 
-  // ================= CARGA DE DATOS (ESTADO 1 = PEDIDOS) =================
+  // ================= CARGA DE DATOS =================
   useEffect(() => {
     if (isOpen && supplierId && token) {
       const loadOrders = async () => {
         setIsLoading(true);
-        // Filtramos por estado 1 (Pedidos en tránsito)
         const response = await pendingOrderService.getPendingOrders(token, 1, 1, 100, undefined, supplierId);
         if (response && response.success) {
           const fetchedOrders = Array.isArray(response.data) ? response.data : (response.data.data || []);
@@ -60,7 +59,6 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
 
   const currentOrder = ordersList[currentIndex];
 
-  // Resetear el formulario al cambiar de producto
   useEffect(() => {
     if (currentOrder) {
       setReceivedQty('');
@@ -70,7 +68,6 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
       setNewProfitMargin(currentOrder.product?.profitMargin?.toString() || '');
       setNewPresentationPrices({});
       
-      // Auto-focus inteligente
       if (currentOrder.product?.isInventoryTracked) {
         setTimeout(() => qtyInputRef.current?.focus(), 150);
       } else {
@@ -112,6 +109,11 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     }
   };
 
+  const handleConfirmPriceChanges = () => {
+    calculatePrices();
+    setIsEditingPrice(false); 
+  };
+
   const renderPriceChangeBadge = (oldPrice: number, newPriceStr: string) => {
     const newPrice = parseFloat(newPriceStr);
     if (isNaN(newPrice) || newPrice === oldPrice) return null;
@@ -128,7 +130,6 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   const processReceipt = async (finalStatus: number) => {
     if (!currentOrder || isSubmitting) return;
 
-    // Validación si va a completarlo y es inventariable
     if (finalStatus === 3 && currentOrder.product?.isInventoryTracked && !receivedQty.trim()) {
       alert("Debes ingresar las piezas que llegaron.");
       qtyInputRef.current?.focus();
@@ -137,44 +138,38 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
 
     setIsSubmitting(true);
 
-    // CONSTRUCCIÓN DEL JSON BASADO EN TUS CASOS (A - F)
     const payload: any = {
       finalStatus: finalStatus,
       movementNotes: movementNotes.trim() || undefined
     };
 
     if (finalStatus === 3) {
-      // Caso A y D: Cantidad (Solo si es inventariable)
       if (currentOrder.product?.isInventoryTracked) {
         payload.receivedQuantity = parseFloat(receivedQty);
       } else {
         payload.receivedQuantity = null;
       }
 
-      // Casos B y C: Cambios de precios
-      if (isEditingPrice) {
-        const oldSupplierPrice = currentOrder.product?.supplierPrice;
-        const oldMargin = currentOrder.product?.profitMargin;
-        const parsedNewCost = parseFloat(newSupplierPrice);
-        const parsedNewMargin = parseFloat(newProfitMargin);
+      const oldSupplierPrice = currentOrder.product?.supplierPrice;
+      const oldMargin = currentOrder.product?.profitMargin;
+      const parsedNewCost = parseFloat(newSupplierPrice);
+      const parsedNewMargin = parseFloat(newProfitMargin);
 
-        if (!isNaN(parsedNewCost) && parsedNewCost !== oldSupplierPrice) payload.newSupplierPrice = parsedNewCost;
-        if (!isNaN(parsedNewMargin) && parsedNewMargin !== oldMargin) payload.newProfitMargin = parsedNewMargin;
+      if (!isNaN(parsedNewCost) && parsedNewCost !== oldSupplierPrice) payload.newSupplierPrice = parsedNewCost;
+      if (!isNaN(parsedNewMargin) && parsedNewMargin !== oldMargin) payload.newProfitMargin = parsedNewMargin;
 
-        const pPrices: any[] = [];
-        Object.entries(newPresentationPrices).forEach(([id, price]) => {
-          const parsedPrice = parseFloat(price);
-          const originalPres = currentOrder.product?.presentations?.find(p => p.id === Number(id));
-          if (!isNaN(parsedPrice) && originalPres && originalPres.price !== parsedPrice) {
-            pPrices.push({ presentationId: Number(id), newPrice: parsedPrice });
-          }
-        });
-        
-        if (pPrices.length > 0) payload.presentationPrices = pPrices;
-      }
+      const pPrices: any[] = [];
+      Object.entries(newPresentationPrices).forEach(([id, price]) => {
+        const parsedPrice = parseFloat(price);
+        const originalPres = currentOrder.product?.presentations?.find(p => p.id === Number(id));
+        if (!isNaN(parsedPrice) && originalPres && originalPres.price !== parsedPrice) {
+          pPrices.push({ presentationId: Number(id), newPrice: parsedPrice });
+        }
+      });
+      
+      if (pPrices.length > 0) payload.presentationPrices = pPrices;
     }
 
-    // Llama al servicio (Asegúrate de haber creado este método en tu pendingOrderService)
     const response = await pendingOrderService.processMerchandiseReceipt(token, currentOrder.id, payload);
     
     if (response && response.success) {
@@ -187,8 +182,9 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     setIsSubmitting(false);
   };
 
+  // AQUÍ ESTABA EL ERROR: Se eliminó el límite de length - 1
   const advanceToNext = () => {
-    if (currentIndex < ordersList.length - 1) {
+    if (currentIndex < ordersList.length) {
       setCurrentIndex(prev => prev + 1);
     }
   };
@@ -279,7 +275,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                   if (status === 2) statusBadge = <span className="text-[9px] bg-red-500/20 text-red-400 px-2 py-1 rounded-md font-black flex items-center gap-1">CANCELADO</span>;
 
                   return (
-                    <div key={order.id} onClick={() => setCurrentIndex(idx)} className={`p-4 rounded-2xl cursor-pointer border transition-all ${isActive ? 'bg-[#121212] border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-[#121212] border-gray-800 hover:border-gray-700'}`}>
+                    <div key={order.id} onClick={() => { if (!isEditingPrice) setCurrentIndex(idx); }} className={`p-4 rounded-2xl cursor-pointer border transition-all ${isActive ? 'bg-[#121212] border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-[#121212] border-gray-800 hover:border-gray-700'} ${isEditingPrice ? 'opacity-50 pointer-events-none' : ''}`}>
                       <div className="flex justify-between items-center mb-2"><span className="text-xs text-gray-500 font-bold">{display.code}</span>{statusBadge}</div>
                       <div className={`font-bold text-sm transition-colors ${status !== undefined ? 'text-gray-600 line-through' : (isActive ? 'text-white' : 'text-gray-300')}`}>{display.name}</div>
                     </div>
@@ -295,8 +291,9 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
             {!currentOrder && !isLoading ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center animate-in zoom-in duration-300">
                  <div className="w-24 h-24 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 border border-green-500/30">✅</div>
-                 <h2 className="text-3xl font-black text-white mb-2">¡Recepción Terminada!</h2>
-                 <button onClick={handleClose} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-12 rounded-xl mt-8">Cerrar Ventana</button>
+                 <h2 className="text-3xl font-black text-white mb-2">¡Todo Listo!</h2>
+                 <p className="text-gray-400 mb-8 font-medium max-w-sm">No hay más mercancía pendiente por recibir en esta lista.</p>
+                 <button onClick={handleClose} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-12 rounded-xl mt-4 transition-colors">Terminar / Salir</button>
               </div>
             ) : currentOrder && displayData && (
               <div className="flex flex-col h-full animate-in fade-in duration-300">
@@ -332,9 +329,10 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                           type={!currentOrder.product?.isInventoryTracked ? "text" : "number"}
                           value={!currentOrder.product?.isInventoryTracked ? '' : receivedQty} 
                           onChange={(e) => setReceivedQty(e.target.value)} 
-                          disabled={!currentOrder.product?.isInventoryTracked} 
+                          disabled={!currentOrder.product?.isInventoryTracked || isEditingPrice} 
                           className={`w-full border-2 font-black rounded-xl py-4 px-6 outline-none transition-colors 
                             ${!currentOrder.product?.isInventoryTracked ? 'bg-[#0a0a0a] border-gray-800 text-gray-500 cursor-not-allowed text-center text-sm' : 'bg-[#121212] border-gray-700 text-white text-3xl focus:border-blue-500 shadow-inner'}
+                            ${isEditingPrice ? 'opacity-50' : ''}
                           `} 
                           placeholder={!currentOrder.product?.isInventoryTracked ? "Producto no inventariable" : "0"}
                         />
@@ -342,15 +340,22 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
 
                       <div>
                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Notas de Recepción (Opcional)</label>
-                         <textarea id="movementNotesInput" value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} className="w-full bg-[#121212] border-2 border-gray-800 text-white rounded-xl p-4 outline-none focus:border-gray-500 resize-none h-24 custom-scrollbar text-sm" placeholder="Ej. Llegó una pieza rota..." />
+                         <textarea 
+                           id="movementNotesInput" 
+                           value={movementNotes} 
+                           onChange={(e) => setMovementNotes(e.target.value)} 
+                           disabled={isEditingPrice}
+                           className={`w-full bg-[#121212] border-2 border-gray-800 text-white rounded-xl p-4 outline-none focus:border-gray-500 resize-none h-24 custom-scrollbar text-sm ${isEditingPrice ? 'opacity-50' : ''}`} 
+                           placeholder="Ej. Llegó una pieza rota..." 
+                         />
                       </div>
                     </div>
 
                     {/* COLUMNA DER: PRECIOS */}
                     {displayData.hasProduct && currentOrder.product && (
-                      <div className="bg-[#1a1a1c] border border-gray-800 rounded-2xl p-6 relative flex flex-col">
+                      <div className={`bg-[#1a1a1c] border rounded-2xl p-6 relative flex flex-col transition-colors ${isEditingPrice ? 'border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border-gray-800'}`}>
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
-                          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">Costos y Precios</h3>
+                          <h3 className={`text-sm font-black uppercase tracking-widest ${isEditingPrice ? 'text-blue-400' : 'text-gray-400'}`}>Costos y Precios</h3>
                           {!isEditingPrice && (
                             <button onClick={() => { setIsEditingPrice(true); setTimeout(() => supplierPriceInputRef.current?.focus(), 100); }} className="text-blue-400 text-xs font-bold bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-500/20 transition-colors">
                               ✎ Actualizar
@@ -361,21 +366,27 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                         {!isEditingPrice ? (
                           <div className="flex flex-col flex-1 justify-center space-y-6">
                             <div className="text-center">
-                              <span className="block text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Costo Proveedor Actual</span>
-                              <span className="text-white font-black text-4xl">${currentOrder.product.supplierPrice?.toFixed(2) || '0.00'}</span>
+                              <span className="block text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Costo Proveedor</span>
+                              <span className="text-white font-black text-4xl">${newSupplierPrice ? parseFloat(newSupplierPrice).toFixed(2) : currentOrder.product.supplierPrice?.toFixed(2) || '0.00'}</span>
                             </div>
                             <div>
                               <div className="flex justify-between items-center mb-3">
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Precios Público</span>
-                                <span className="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">Ganancia: {currentOrder.product.profitMargin}%</span>
+                                <span className="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">Ganancia: {newProfitMargin ? parseFloat(newProfitMargin) : currentOrder.product.profitMargin}%</span>
                               </div>
                               <div className="space-y-2">
-                                {currentOrder.product.presentations?.map(pres => (
-                                  <div key={pres.id} className="bg-[#121212] p-3 rounded-lg border border-gray-800 flex justify-between items-center">
-                                    <span className="text-gray-400 font-bold text-xs">{pres.name}</span>
-                                    <span className="text-white font-black text-lg">${pres.price.toFixed(2)}</span>
-                                  </div>
-                                ))}
+                                {currentOrder.product.presentations?.map(pres => {
+                                  const displayPrice = newPresentationPrices[pres.id] ? parseFloat(newPresentationPrices[pres.id]) : pres.price;
+                                  return (
+                                    <div key={pres.id} className="bg-[#121212] p-3 rounded-lg border border-gray-800 flex justify-between items-center">
+                                      <span className="text-gray-400 font-bold text-xs">{pres.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        {renderPriceChangeBadge(pres.price, displayPrice.toString())}
+                                        <span className="text-white font-black text-lg">${displayPrice.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           </div>
@@ -395,7 +406,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                               🖩 Recalcular Sugeridos
                             </button>
 
-                            <div className="border-t border-gray-800 pt-4 space-y-2">
+                            <div className="border-t border-gray-800 pt-4 space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
                               {currentOrder.product.presentations?.map(pres => (
                                 <div key={pres.id} className="bg-[#121212] p-2.5 rounded-lg border border-gray-800 flex items-center justify-between">
                                   <div className="flex flex-col">
@@ -418,20 +429,28 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
 
                 {/* ================= BOTONES INFERIORES ================= */}
                 <div className="p-6 border-t border-gray-800 bg-[#0a0a0a] shrink-0 flex justify-between items-center">
-                  <button onClick={handlePrev} disabled={currentIndex === 0 || isSubmitting} className="flex items-center gap-2 px-6 py-4 bg-[#1c1c1e] hover:bg-gray-800 disabled:opacity-30 text-gray-300 rounded-xl font-bold transition-colors">
+                  <button onClick={handlePrev} disabled={currentIndex === 0 || isSubmitting || isEditingPrice} className="flex items-center gap-2 px-6 py-4 bg-[#1c1c1e] hover:bg-gray-800 disabled:opacity-30 text-gray-300 rounded-xl font-bold transition-colors">
                     <kbd className="bg-black text-gray-500 px-1.5 py-0.5 rounded border border-gray-700 text-[10px]">←</kbd> Regresar
                   </button>
 
                   <div className="flex gap-3">
-                    <button onClick={() => processReceipt(2)} disabled={isSubmitting} className="px-6 py-4 bg-[#1c1c1e] border border-gray-800 hover:bg-red-900/20 text-gray-400 hover:text-red-400 disabled:opacity-50 rounded-xl font-bold transition-colors">
-                      Cancelar ✗
-                    </button>
-                    <button onClick={() => processReceipt(0)} disabled={isSubmitting} className="px-6 py-4 bg-[#1c1c1e] border border-gray-800 hover:bg-orange-900/20 text-gray-400 hover:text-orange-400 disabled:opacity-50 rounded-xl font-bold transition-colors">
-                      Faltó (Pendiente) ⏳
-                    </button>
-                    <button onClick={() => processReceipt(3)} disabled={isSubmitting || !displayData.hasProduct} className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-black transition-colors shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-                      Recibir Mercancía ✓
-                    </button>
+                    {isEditingPrice ? (
+                      <button onClick={handleConfirmPriceChanges} className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black transition-colors shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                        Confirmar Cambios ✓
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => processReceipt(2)} disabled={isSubmitting} className="px-6 py-4 bg-[#1c1c1e] border border-gray-800 hover:bg-red-900/20 text-gray-400 hover:text-red-400 disabled:opacity-50 rounded-xl font-bold transition-colors">
+                          Cancelar ✗
+                        </button>
+                        <button onClick={() => processReceipt(0)} disabled={isSubmitting} className="px-6 py-4 bg-[#1c1c1e] border border-gray-800 hover:bg-orange-900/20 text-gray-400 hover:text-orange-400 disabled:opacity-50 rounded-xl font-bold transition-colors">
+                          Faltó (Pendiente) ⏳
+                        </button>
+                        <button onClick={() => processReceipt(3)} disabled={isSubmitting || !displayData.hasProduct} className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-black transition-colors shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                          Recibir Mercancía ✓
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
