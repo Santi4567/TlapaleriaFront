@@ -22,6 +22,9 @@ export interface PendingOrderProduct {
   location?: string;
   currentStock?: number;
   isInventoryTracked?: boolean;
+  supplierPrice?: number;
+  profitMargin?: number;
+  presentations?: { id: number; stockFactor: number; [key: string]: any }[];
 }
 
 export interface PendingOrderUser {

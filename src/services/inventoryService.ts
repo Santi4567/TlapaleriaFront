@@ -1,6 +1,7 @@
 // src/services/inventoryService.ts
 import { ApiResponse, PagedResponse } from '../types/product';
 import { InventoryMovementRequest, InventoryMovementResponse, GetMovementsParams } from '../types/inventory';
+import { fetchWithAuth } from "../utils/fetchClient";
 // Usamos la variable de entorno configurada en Vite
 const API_URL = `${import.meta.env.VITE_API_URL}/InventoryMovements`;
 
@@ -10,7 +11,7 @@ export const inventoryService = {
     movementData: InventoryMovementRequest
   ): Promise<ApiResponse<InventoryMovementResponse> | null> {
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetchWithAuth(API_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -59,7 +60,7 @@ export const inventoryService = {
       if (params.productId) queryParams.append('productId', params.productId.toString());
       if (params.movementType) queryParams.append('movementType', params.movementType.toString());
 
-      const response = await fetch(`${API_URL}?${queryParams.toString()}`, {
+      const response = await fetchWithAuth(`${API_URL}?${queryParams.toString()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

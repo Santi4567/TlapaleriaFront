@@ -10,8 +10,8 @@ import ConfirmActionModal from './ConfirmActionModal';
 interface CatalogOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any, isEdit: boolean) => Promise<void>;
-  onChangeStatus?: (id: number, status: number) => Promise<void>;
+  onSave: (data: any, isEdit: boolean) => Promise<boolean>; // 
+  onChangeStatus?: (id: number, status: number) => Promise<boolean>; // 
   initialData?: PendingOrder | null;
 }
 
@@ -43,7 +43,7 @@ const CatalogOrderModal: React.FC<CatalogOrderModalProps> = ({
   const [fetchedSuppliers, setFetchedSuppliers] = useState<Supplier[]>([]);
   const [isSupplierFocused, setIsSupplierFocused] = useState(false);
   const [highlightedSupplierIndex, setHighlightedSupplierIndex] = useState(0);
-  const [isSupplierLoading, setIsSupplierLoading] = useState(false);
+  //const [isSupplierLoading, setIsSupplierLoading] = useState(false);
   
   const [cantidad, setCantidad] = useState('');
   const [mensaje, setMensaje] = useState('');

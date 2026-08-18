@@ -6,6 +6,7 @@ import {
   UpdateSupplierRequest, 
   APICreateSupplierResponse 
 } from "../types/supplier";
+import { fetchWithAuth } from "../utils/fetchClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -18,7 +19,7 @@ export const supplierService = {
     isActive: boolean = true
   ): Promise<APISuppliersResponse | null> => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `${API_URL}/Suppliers?isActive=${isActive}&pageNumber=${pageNumber}&pageSize=${pageSize}`, 
         {
           method: 'GET',
@@ -43,7 +44,7 @@ export const supplierService = {
     isActive: boolean = true
   ): Promise<APISearchSuppliersResponse | null> => {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `${API_URL}/Suppliers/search/${encodeURIComponent(term)}?isActive=${isActive}`, 
         {
           method: 'GET',
@@ -63,7 +64,7 @@ export const supplierService = {
 
   createSupplier: async (token: string, supplier: CreateSupplierRequest): Promise<APICreateSupplierResponse | null> => {
     try {
-      const response = await fetch(`${API_URL}/Suppliers`, {
+      const response = await fetchWithAuth(`${API_URL}/Suppliers`, {
         method: 'POST',
         headers: {
           'accept': 'text/plain',
@@ -81,7 +82,7 @@ export const supplierService = {
 
   updateSupplier: async (token: string, id: number, supplier: UpdateSupplierRequest) => {
     try {
-      const response = await fetch(`${API_URL}/Suppliers/${id}`, {
+      const response = await fetchWithAuth(`${API_URL}/Suppliers/${id}`, {
         method: 'PUT',
         headers: {
           'accept': 'text/plain',

@@ -1,11 +1,13 @@
 // src/services/saleService.ts
+import { fetchWithAuth } from "../utils/fetchClient";
+
 const BASE_API = import.meta.env.VITE_API_URL 
 const API_URL = `${BASE_API}/Sales`;
 
 export const saleService = {
   async createSale(token: string, payload: any) {
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetchWithAuth(API_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

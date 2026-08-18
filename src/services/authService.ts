@@ -1,5 +1,6 @@
 // src/services/authService.ts
 import { LoginRequest, APIAuthResponse } from "../types/auth";
+import { fetchWithAuth } from "../utils/fetchClient";
 
 // Vite expone las variables de entorno a través de import.meta.env
 const API_URL = import.meta.env.VITE_API_URL;
@@ -45,10 +46,10 @@ export const authService = {
     }
   },
 
-  // NUEVA FUNCIÓN: Obtener el perfil y permisos del usuario usando el Token
+  // FUNCIÓN: Obtener el perfil y permisos del usuario usando el Token
   getProfile: async (token: string) => {
     try {
-      const response = await fetch(`${API_URL}/Users/profile`, {
+      const response = await fetchWithAuth(`${API_URL}/Users/profile`, {
         method: 'GET',
         headers: {
           'accept': 'text/plain',

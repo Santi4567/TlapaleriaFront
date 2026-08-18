@@ -7,6 +7,7 @@ import {
   PagedResponse,
   ExpiringProduct 
 } from '../types/product';
+import { fetchWithAuth } from "../utils/fetchClient";
 
 // Ajusta la URL base a la configuración de tu entorno en Tauri / Vite
 // Usamos la variable de entorno VITE_API_URL
@@ -22,7 +23,7 @@ export const productService = {
     isActive: boolean = true
   ): Promise<ApiResponse<PagedResponse<Product>> | null> {
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `${API_URL}?pageNumber=${pageNumber}&pageSize=${pageSize}&isActive=${isActive}`,
         {
           method: 'GET',
@@ -55,7 +56,7 @@ export const productService = {
       const encodedTerm = encodeURIComponent(searchTerm);
       
       // CORRECCIÓN: Cambiar "searchTerm=" por "query="
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `${API_URL}/search?query=${encodedTerm}&isActive=${isActive}`,
         {
           method: 'GET',
@@ -85,7 +86,7 @@ export const productService = {
     isActive: boolean = true
   ): Promise<ApiResponse<Product> | null> {
     try {
-      const response = await fetch(`${API_URL}/${id}?isActive=${isActive}`, {
+      const response = await fetchWithAuth(`${API_URL}/${id}?isActive=${isActive}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -111,7 +112,7 @@ export const productService = {
     productData: CreateProductRequest
   ): Promise<ApiResponse<Product> | null> {
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetchWithAuth(API_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -149,7 +150,7 @@ export const productService = {
     productData: UpdateProductRequest
   ): Promise<ApiResponse<Product> | null> {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetchWithAuth(`${API_URL}/${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -183,7 +184,7 @@ export const productService = {
   // 6. ELIMINAR (BORRADO LÓGICO / DESACTIVAR)
   async deleteProduct(token: string, id: number): Promise<ApiResponse<boolean> | null> {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetchWithAuth(`${API_URL}/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -205,7 +206,7 @@ export const productService = {
   // 7. REACTIVAR PRODUCTO ELIMINADO
   async reactivateProduct(token: string, id: number): Promise<ApiResponse<boolean> | null> {
     try {
-      const response = await fetch(`${API_URL}/${id}/reactivate`, {
+      const response = await fetchWithAuth(`${API_URL}/${id}/reactivate`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +228,7 @@ export const productService = {
   // 8. ALERTA DE PRODUCTOS PRÓXIMOS A CADUCAR
   async getExpiringProducts(token: string): Promise<ApiResponse<ExpiringProduct[]> | null> {
     try {
-      const response = await fetch(`${API_URL}/expiring`, {
+      const response = await fetchWithAuth(`${API_URL}/expiring`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -254,7 +255,7 @@ export const productService = {
   ): Promise<{ success: boolean; message: string; data: { existe: boolean; nombreProducto: string | null } } | null> {
     try {
       const encodedCode = encodeURIComponent(code);
-      const response = await fetch(`${API_URL}/check-internal-code?code=${encodedCode}`, {
+      const response = await fetchWithAuth(`${API_URL}/check-internal-code?code=${encodedCode}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

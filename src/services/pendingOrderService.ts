@@ -6,6 +6,7 @@ import {
   changeOrderStatus,
   processMerchandiseReceipt
 } from '../types/pendingOrder';
+import { fetchWithAuth } from "../utils/fetchClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -35,7 +36,7 @@ export const pendingOrderService = {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await fetch(`${API_URL}/PendingOrders/filter?${params.toString()}`, {
+      const response = await fetchWithAuth(`${API_URL}/PendingOrders/filter?${params.toString()}`, {
         method: 'GET',
         cache: 'no-store',
         headers: {
@@ -55,7 +56,7 @@ export const pendingOrderService = {
 
   createPendingOrder: async (token: string, data: CreatePendingOrderRequest): Promise<APIPendingOrderResponse | null> => {
     try {
-      const response = await fetch(`${API_URL}/PendingOrders`, {
+      const response = await fetchWithAuth(`${API_URL}/PendingOrders`, {
         method: 'POST',
         headers: { 'accept': 'text/plain', 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
@@ -68,7 +69,7 @@ export const pendingOrderService = {
   updatePendingOrder: async (token: string, id: number, data: UpdatePendingOrderRequest): Promise<APIPendingOrderResponse | null> => {
     // ... (Se mantiene igual)
     try {
-      const response = await fetch(`${API_URL}/PendingOrders/${id}`, {
+      const response = await fetchWithAuth(`${API_URL}/PendingOrders/${id}`, {
         method: 'PUT',
         headers: { 'accept': 'text/plain', 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
@@ -80,7 +81,7 @@ export const pendingOrderService = {
 
   changeOrderStatus: async (token: string, id: number, status: number): Promise<APIPendingOrderResponse | null> => {
     try {
-      const response = await fetch(`${API_URL}/PendingOrders/${id}/status`, {
+      const response = await fetchWithAuth(`${API_URL}/PendingOrders/${id}/status`, {
         method: 'PATCH',
         headers: { 
           'accept': 'text/plain', 
@@ -100,7 +101,7 @@ export const pendingOrderService = {
   // Recibir mercancia 
   processMerchandiseReceipt: async (token: string, id: number, payload: any): Promise<APIPendingOrderResponse | null> => {
     try {
-      const response = await fetch(`${API_URL}/PendingOrders/${id}/receive`, { // <-- Ajusta la URL de tu endpoint aquí
+      const response = await fetchWithAuth(`${API_URL}/PendingOrders/${id}/receive`, { // <-- Ajusta la URL de tu endpoint aquí
         method: 'POST',
         headers: { 'accept': 'text/plain', 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
