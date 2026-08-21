@@ -11,6 +11,8 @@ import PendingOrdersScreen from '../pages/PendingOrdersScreen';
 import InventoryScreen from '../pages/InventoryScreen';
 import FinanceScreen from '../pages/FinanceScreen';
 import UserScreen from '../pages/UserScreen';
+import UserManagementScreen from '../pages/UserManagementScreen';
+//import ConfigurationScreen from '../pages/ConfigurationScreen';
 
 const MainLayout: React.FC = () => {
   // Ahora la vista por defecto al iniciar sesión es el Dashboard (HOME)
@@ -26,6 +28,7 @@ const MainLayout: React.FC = () => {
       case 'INVENTORY': return <InventoryScreen />;
       case 'FINANCE': return <FinanceScreen />;
       case 'USER': return <UserScreen />;
+      case 'USER_MANAGEMENT': return <UserManagementScreen/>
       default: return <HomeScreen />;
     }
   };

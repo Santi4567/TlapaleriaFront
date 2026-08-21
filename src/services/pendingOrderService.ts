@@ -2,9 +2,7 @@ import {
   CreatePendingOrderRequest, 
   UpdatePendingOrderRequest,
   APIPendingOrderResponse,
-  APIPendingOrdersListResponse,
-  changeOrderStatus,
-  processMerchandiseReceipt
+  APIPendingOrdersListResponse
 } from '../types/pendingOrder';
 import { fetchWithAuth } from "../utils/fetchClient";
 

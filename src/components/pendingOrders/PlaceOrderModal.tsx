@@ -1,5 +1,5 @@
 // src/components/pendingOrders/PlaceOrderModal.tsx
-import React, { useState, useEffect, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import React, { useState, useEffect} from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { pendingOrderService } from '../../services/pendingOrderService';
 import { PendingOrder } from '../../types/pendingOrder';

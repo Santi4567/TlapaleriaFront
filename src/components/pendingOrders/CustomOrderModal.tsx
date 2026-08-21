@@ -39,7 +39,7 @@ const CustomOrderModal: React.FC<CustomOrderModalProps> = ({
   const [fetchedProducts, setFetchedProducts] = useState<any[]>([]);
   const [isProductFocused, setIsProductFocused] = useState(false);
   const [highlightedProductIndex, setHighlightedProductIndex] = useState(0);
-  const [isProductLoading, setIsProductLoading] = useState(false);
+  const [, setIsProductLoading] = useState(false);
   
   const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);

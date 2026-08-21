@@ -1,5 +1,4 @@
 // src/App.tsx
-import React from 'react';
 import { useAuth } from './context/AuthContext';
 import CustomTitleBar from './components/CustomTitleBar';
 import Login from './pages/Login';

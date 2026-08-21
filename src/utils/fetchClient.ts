@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 let isRefreshing = false;
 
 // 1. CORRECCIÓN: La cola ahora espera recibir un string (el nuevo token) al resolverse
-let failedQueue: Array<{ resolve: (value?: string | null) => void, reject: (reason?: any) => void }> = [];
+let failedQueue: Array<{ resolve: (value?: any) => void, reject: (reason?: any) => void }> = [];
 
 const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach(prom => {
@@ -84,7 +84,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
       if (refreshResult.success && refreshResult.data && refreshResult.data.token) {
         const newToken = refreshResult.data.token;
         console.log(`[fetchClient] ✅ Refresh exitoso. Nuevo token capturado.`);
-
+        
         // 3. CORRECCIÓN: Actualizamos el header de la petición que originó el 401
         fetchOptions.headers = {
           ...fetchOptions.headers,

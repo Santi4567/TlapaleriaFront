@@ -1,5 +1,5 @@
 // src/components/pendingOrders/ReceiveMerchandiseModal.tsx
-import React, { useState, useEffect, useRef, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { pendingOrderService } from '../../services/pendingOrderService';
 import { PendingOrder } from '../../types/pendingOrder';

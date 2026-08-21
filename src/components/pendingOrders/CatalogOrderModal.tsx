@@ -48,6 +48,7 @@ const CatalogOrderModal: React.FC<CatalogOrderModalProps> = ({
   const [cantidad, setCantidad] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setIsSupplierLoading] = useState(false);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [statusToConfirm, setStatusToConfirm] = useState<number | null>(null);
