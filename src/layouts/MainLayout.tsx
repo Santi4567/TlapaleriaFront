@@ -12,6 +12,7 @@ import InventoryScreen from '../pages/InventoryScreen';
 import FinanceScreen from '../pages/FinanceScreen';
 import UserScreen from '../pages/UserScreen';
 import UserManagementScreen from '../pages/UserManagementScreen';
+import RoleManagementScreen from '../pages/RoleManagementScreen';
 //import ConfigurationScreen from '../pages/ConfigurationScreen';
 
 const MainLayout: React.FC = () => {
@@ -29,13 +30,14 @@ const MainLayout: React.FC = () => {
       case 'FINANCE': return <FinanceScreen />;
       case 'USER': return <UserScreen />;
       case 'USER_MANAGEMENT': return <UserManagementScreen/>
+      case 'ROL': return <RoleManagementScreen />;
       default: return <HomeScreen />;
     }
   };
 
   return (
-    <div className="flex flex-1 w-full h-full bg-[#050505] overflow-hidden"> 
-      <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+<div className="flex w-full h-screen bg-[#050505] overflow-hidden">
+        <Sidebar currentView={currentView} onNavigate={setCurrentView} />
       <div className="flex-1 p-4 pl-0 flex flex-col relative overflow-hidden">
          {renderView()}
       </div>
