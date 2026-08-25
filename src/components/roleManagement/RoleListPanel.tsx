@@ -1,4 +1,3 @@
-// src/components/roleManagement/RoleListPanel.tsx
 import React from 'react';
 import { Role } from '../../types/role';
 
@@ -6,15 +5,16 @@ interface RoleListPanelProps {
   roles: Role[];
   selectedRole: Role | null;
   isLoading: boolean;
-  isCollapsed: boolean; // NUEVO
-  onToggleCollapse: () => void; // NUEVO
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
   onSelectRole: (role: Role) => void;
   onCreateClick: () => void;
 }
 
 const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLoading, isCollapsed, onToggleCollapse, onSelectRole, onCreateClick }) => {
   return (
-    <div className="w-full h-full bg-[#121212] border border-gray-800 rounded-3xl p-4 flex flex-col shadow-xl transition-all">
+    // Quitamos transition-all de aquí
+    <div className="w-full h-full bg-[#121212] border border-gray-800 rounded-3xl p-4 flex flex-col shadow-xl min-h-0">
       
       {/* Header con botón de colapsar */}
       <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center flex-col gap-4' : 'justify-between'}`}>
@@ -44,7 +44,8 @@ const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLo
       </div>
       
       {/* Lista de Roles */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full">
+      {/* Agregamos overflow-x-hidden para evitar scroll lateral al animar */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full">
         {isLoading ? (
           [1, 2, 3].map(i => <div key={i} className={`rounded-2xl bg-gray-900/50 border border-gray-800 animate-pulse ${isCollapsed ? 'h-14 w-14 mx-auto' : 'h-20 p-4'}`}></div>)
         ) : roles.length === 0 ? (
@@ -54,9 +55,10 @@ const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLo
             <div 
               key={rol.id} onClick={() => onSelectRole(rol)}
               title={rol.nombre}
-              className={`rounded-2xl cursor-pointer transition-all border flex items-center justify-center 
+              // REGLA DE ORO AQUÍ: shrink-0 y transition-colors (no transition-all)
+              className={`rounded-2xl cursor-pointer border flex shrink-0 transition-colors duration-200
                 ${selectedRole?.id === rol.id ? 'bg-brand-orange/10 border-brand-orange text-white' : 'bg-black/40 border-gray-800 hover:border-gray-600 text-gray-400'}
-                ${isCollapsed ? 'h-14 w-14 mx-auto p-0' : 'p-4 flex-col items-start justify-start'}
+                ${isCollapsed ? 'h-14 w-14 mx-auto items-center justify-center p-0' : 'p-4 flex-col items-start justify-start w-full'}
               `}
             >
               {isCollapsed ? (
@@ -64,13 +66,16 @@ const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLo
                   {rol.nombre.charAt(0).toUpperCase()}
                 </span>
               ) : (
-                <>
-                  <h3 className={`font-bold text-lg ${selectedRole?.id === rol.id ? 'text-brand-orange' : 'text-gray-300'}`}>{rol.nombre}</h3>
-                  <p className="text-xs mt-1 opacity-80 flex items-center gap-1">
-                    <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                // Envolvemos el texto en un div full para forzar el truncate y que NUNCA haga dos líneas
+                <div className="w-full overflow-hidden">
+                  <h3 className={`font-bold text-lg truncate w-full ${selectedRole?.id === rol.id ? 'text-brand-orange' : 'text-gray-300'}`}>
+                    {rol.nombre}
+                  </h3>
+                  <p className="text-xs mt-1 opacity-80 flex items-center gap-1 truncate w-full">
+                    <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     {rol.permisosIds?.length || 0} permisos
                   </p>
-                </>
+                </div>
               )}
             </div>
           ))

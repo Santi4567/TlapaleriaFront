@@ -49,10 +49,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   ];
 
   return (
-    <aside 
+<aside 
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
-      className={`bg-[#121212] m-4 rounded-3xl shadow-2xl flex flex-col py-6 transition-all duration-300 ease-in-out relative z-40 border border-gray-800/50
+      // AGREGAMOS: h-[calc(100vh-2rem)] para fijar la altura exacta a la pantalla menos los márgenes m-4
+      className={`bg-[#121212] m-4 h-[calc(100vh-2rem)] rounded-3xl shadow-2xl flex flex-col py-6 transition-[width] duration-300 ease-in-out relative z-40 border border-gray-800/50
         ${isExpanded ? 'w-64' : 'w-20'}`}
     >
       {/* 1. SECCIÓN SUPERIOR CON SCROLL: 
@@ -60,13 +61,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
           overflow-y-auto (permite scroll vertical)
           overflow-x-hidden (evita que el texto desborde al colapsar)
           Clases extra para ocultar la barra de scroll visualmente pero mantener la función */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col space-y-3 px-3">
-        {menuItems.map((item) =>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3">        {menuItems.map((item) =>
           item.show && (
             <button 
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`flex items-center p-3 rounded-2xl transition-all duration-200 group relative overflow-hidden shrink-0
+              // CAMBIO AQUÍ: transition-colors en lugar de transition-all
+              className={`flex items-center p-3 rounded-2xl transition-colors duration-200 group relative overflow-hidden shrink-0
                 ${currentView === item.id 
                   ? 'bg-brand-orange text-brand-deep-dark shadow-[0_0_15px_rgba(255,90,0,0.3)]' 
                   : 'text-brand-text-muted hover:text-white hover:bg-gray-800/80'}`}

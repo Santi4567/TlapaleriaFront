@@ -97,6 +97,38 @@ getPermissions: async (token: string) => {
 
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
     return response.json();
+  },
+
+  // Agregar varios permisos de golpe
+  addRolePermissionsBulk: async (token: string, roleId: number, permissionIds: number[]) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${roleId}/permissions/bulk`, {
+      method: 'POST',
+      headers: {
+        'accept': 'text/plain',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(permissionIds)
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
+  },
+
+  // Quitar varios permisos de golpe
+  removeRolePermissionsBulk: async (token: string, roleId: number, permissionIds: number[]) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${roleId}/permissions/bulk`, {
+      method: 'DELETE',
+      headers: {
+        'accept': 'text/plain',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(permissionIds)
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
   }
 
 };

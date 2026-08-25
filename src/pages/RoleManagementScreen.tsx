@@ -149,28 +149,53 @@ const RoleManagementScreen: React.FC = () => {
     }
   };
 
-  // 2. Nueva Función: Guardar SOLO los permisos
-  const handleSavePermissions = async (roleId: number, newPermissionIds: number[]) => {
+ const handleSavePermissions = async (roleId: number, newPermissionIds: number[]) => {
     if (!user?.token || !selectedRole) return;
+    
+    setIsLoading(true);
     try {
-      // Mandamos el nombre actual y los nuevos permisos
-      const payload = {
-        nombre: selectedRole.nombre,
-        permisosIds: newPermissionIds
-      };
-      
-      const response = await roleService.updateRole(user.token, roleId, payload);
-      
-      if (response.success) {
-        setAlert({ success: true, message: 'Permisos actualizados exitosamente.' });
-        const rolesRes = await roleService.getRoles(user.token);
-        if (rolesRes.success && rolesRes.data) setRoles(rolesRes.data);
-      } else {
-        setAlert({ success: false, message: response.message || 'Error al actualizar permisos.' });
+      // 1. Obtenemos los permisos originales del rol
+      const originalPerms = selectedRole.permisosIds || [];
+
+      // 2. Comparamos para saber qué se agregó y qué se quitó
+      const permsToAdd = newPermissionIds.filter(id => !originalPerms.includes(id));
+      const permsToRemove = originalPerms.filter(id => !newPermissionIds.includes(id));
+
+      // 3. Preparamos las peticiones a tus endpoints BULK
+      const promises: Promise<any>[] = [];
+
+      if (permsToAdd.length > 0) {
+        promises.push(roleService.addRolePermissionsBulk(user.token, roleId, permsToAdd));
       }
-      setTimeout(() => setAlert(null), 4000);
+
+      if (permsToRemove.length > 0) {
+        promises.push(roleService.removeRolePermissionsBulk(user.token, roleId, permsToRemove));
+      }
+
+      // 4. Si hubo cambios, lanzamos las peticiones al mismo tiempo
+      if (promises.length > 0) {
+        await Promise.all(promises);
+        setAlert({ success: true, message: 'Permisos actualizados exitosamente.' });
+        
+        // Recargamos silenciosamente los roles para mantener la UI sincronizada
+        const rolesRes = await roleService.getRoles(user.token);
+        if (rolesRes.success && rolesRes.data) {
+          setRoles(rolesRes.data);
+          
+          // Actualizamos el selectedRole para que los checkboxes no se reseteen solos
+          const updated = rolesRes.data.find(r => r.id === roleId);
+          if (updated) setSelectedRole(updated);
+        }
+      } else {
+        setAlert({ success: true, message: 'No se detectaron cambios en los permisos.' });
+      }
+
     } catch (error) {
+      console.error("Error al actualizar permisos en bulk:", error);
       setAlert({ success: false, message: 'Fallo la conexión con el servidor.' });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setAlert(null), 4000);
     }
   };
 
@@ -200,7 +225,10 @@ const RoleManagementScreen: React.FC = () => {
     }
   };
 
-  return (
+  
+
+  
+return (
     <>
       <div className="flex flex-col h-full bg-[#0a0a0a] p-6 text-white overflow-hidden relative">
         <div className="mb-4 z-10 shrink-0">
@@ -208,20 +236,26 @@ const RoleManagementScreen: React.FC = () => {
           <p className="text-gray-400">Configura los niveles de acceso y los módulos disponibles para cada rol.</p>
         </div>
 
+        {/* ALERTA FLOTANTE (TOAST) */}
         {alert && (
-          <div className="z-10 mb-4 animate-fade-in shrink-0">
+          <div className="absolute top-6 right-6 z-[100] animate-fade-in shadow-2xl min-w-[320px] max-w-md">
             <StatusAlert success={alert.success} message={alert.message} onClose={() => setAlert(null)} />
           </div>
         )}
 
-        <div className="flex-1 flex gap-6 overflow-hidden mt-2">
+        {/* AGREGAMOS min-h-0 AL CONTENEDOR PRINCIPAL */}
+        <div className="flex-1 flex gap-6 overflow-hidden mt-2 min-h-0">
           
-          {/* COLUMNA IZQUIERDA ANIMADA Y COLAPSABLE */}
-          <div className={`relative flex flex-col shrink-0 h-full overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.3,1,0.8,1)]
+          {/* ==========================================
+              COLUMNA IZQUIERDA ANIMADA Y COLAPSABLE
+          ========================================== */}
+          {/* Usamos transition-[width] en lugar de transition-all para que no pelee con el flexbox */}
+          <div className={`relative shrink-0 h-full overflow-hidden transition-[width] duration-500 ease-[cubic-bezier(0.3,1,0.8,1)]
             ${isListCollapsed ? 'w-24' : 'w-1/3'}`}
           >
-            {/* VISTA 1: Lista de Roles */}
-            <div className={`absolute top-0 left-0 w-full h-full transition-transform duration-700 
+            
+            {/* VISTA 1: Lista de Roles (absolute inset-0 lo ancla a las 4 esquinas exactas) */}
+            <div className={`absolute inset-0 transition-transform duration-700 
               ${isCreating ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}
             >
               <RoleListPanel 
@@ -236,7 +270,7 @@ const RoleManagementScreen: React.FC = () => {
             </div>
 
             {/* VISTA 2: Formulario de Creación */}
-            <div className={`absolute top-0 left-0 w-full h-full bg-[#121212] border border-gray-800 rounded-3xl p-6 flex flex-col transition-transform duration-700 
+            <div className={`absolute inset-0 bg-[#121212] border border-gray-800 rounded-3xl p-6 flex flex-col transition-transform duration-700 
               ${isCreating ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}
             >
               <h2 className="text-xl font-bold text-brand-orange mb-6 border-b border-gray-800 pb-3">Diseñar Nuevo Rol</h2>
@@ -252,7 +286,6 @@ const RoleManagementScreen: React.FC = () => {
                 />
               </div>
 
-              {/* Caja de Recomendaciones */}
               <div className="bg-gray-900/50 border border-brand-orange/20 rounded-2xl p-5 mb-auto flex-1 overflow-y-auto">
                 <h3 className="text-brand-orange font-bold text-sm mb-4">Recomendaciones:</h3>
                 <ul className="space-y-4 text-sm text-gray-400">
@@ -286,14 +319,14 @@ const RoleManagementScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* COLUMNA DERECHA: AHORA USAMOS PANEL ROL */}
+          {/* COLUMNA DERECHA */}
           <PanelRol 
             selectedRole={selectedRole} 
             allPermissions={allPermissions} 
             activePerms={activePerms}
             onTogglePerm={handleTogglePerm}
-            onSaveName={handleSaveName} // <--- Pasamos función de nombre
-            onSavePermissions={handleSavePermissions} // <--- Pasamos función de permisos
+            onSaveName={handleSaveName}
+            onSavePermissions={handleSavePermissions}
             onDeleteRequest={() => setIsDeleteOpen(true)}
             isCreating={isCreating}
           />
@@ -301,21 +334,14 @@ const RoleManagementScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL DE CREACIÓN */}
       <RoleConfirmModal 
-        isOpen={isConfirmOpen} 
-        roleName={newRoleName} 
-        permsCount={activePerms.length} 
-        onClose={() => setIsConfirmOpen(false)} 
-        onConfirm={handleFinalCreate} 
+        isOpen={isConfirmOpen} roleName={newRoleName} permsCount={activePerms.length} 
+        onClose={() => setIsConfirmOpen(false)} onConfirm={handleFinalCreate} 
       />
 
-      {/* MODAL DE ELIMINACIÓN */}
       <RoleDeleteModal
-        isOpen={isDeleteOpen} 
-        roleName={selectedRole?.nombre || ''}
-        onClose={() => setIsDeleteOpen(false)} 
-        onConfirm={handleDeleteRole}
+        isOpen={isDeleteOpen} roleName={selectedRole?.nombre || ''}
+        onClose={() => setIsDeleteOpen(false)} onConfirm={handleDeleteRole}
       />
     </>
   );
