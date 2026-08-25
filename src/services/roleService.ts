@@ -36,7 +36,67 @@ getPermissions: async (token: string) => {
     }
 
     return response.json();
+  },
+  createRole: async (token: string, roleData: { nombre: string; permisosIds: number[] }) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles`, {
+      method: 'POST',
+      headers: {
+        'accept': 'text/plain',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(roleData)
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
+  },
+
+  //Actualizar el nombre del ROL
+
+  updateRole: async (token: string, id: number, roleData: { nombre: string; permisosIds?: number[] }) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${id}`, {
+      method: 'PUT',
+      headers: {
+        'accept': 'text/plain',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      // Mandamos el nombre, y los permisos por si tu API los acepta en el mismo endpoint
+      body: JSON.stringify(roleData)
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
+  },
+
+  //Eliminar un rol 
+  deleteRole: async (token: string, id: number) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
+  },
+
+  // Traer a los usuarios pertenecientes a un Rol
+
+  getRoleUsers: async (token: string, roleId: number, pageNumber: number = 1, pageSize: number = 10) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${roleId}/users?pageNumber=${pageNumber}&pageSize=${pageSize}`, {
+      method: 'GET',
+      headers: {
+        'accept': 'text/plain',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return response.json();
   }
-  
-  // Aquí agregarás después: updateRole, createRole, deleteRole...
+
 };
