@@ -1,5 +1,5 @@
 // src/components/Sidebar.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -10,6 +10,28 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   const { user, logout } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // FIX: cuando la ventana de Tauri se maximiza/restaura, el webview a veces
+  // no "clampea" el scrollTop del contenedor si este quedó desplazado hasta
+  // abajo. El ResizeObserver detecta el cambio de tamaño del propio div y
+  // corrige el scrollTop si ya se pasó del máximo permitido.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const fixStuckScroll = () => {
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (el.scrollTop > maxScroll) {
+        el.scrollTop = Math.max(0, maxScroll);
+      }
+    };
+
+    const ro = new ResizeObserver(fixStuckScroll);
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, []);
 
   const checkPermission = (categoria: string, permiso: string) => {
     const userPerms = (user as any)?.permisos;
@@ -61,7 +83,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
           overflow-y-auto (permite scroll vertical)
           overflow-x-hidden (evita que el texto desborde al colapsar)
           Clases extra para ocultar la barra de scroll visualmente pero mantener la función */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3">        {menuItems.map((item) =>
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3"
+        >        {menuItems.map((item) =>
           item.show && (
             <button 
               key={item.id}
