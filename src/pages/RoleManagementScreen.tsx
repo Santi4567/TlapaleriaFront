@@ -199,7 +199,7 @@ const RoleManagementScreen: React.FC = () => {
     }
   };
 
-  // Eliminación
+  // Eliminación de Rol
   const handleDeleteRole = async () => {
     if (!user?.token || !selectedRole) return;
     setIsDeleteOpen(false);
@@ -209,6 +209,7 @@ const RoleManagementScreen: React.FC = () => {
       
       if (response.success) {
         setAlert({ success: true, message: 'Rol eliminado exitosamente.' });
+        
         const rolesRes = await roleService.getRoles(user.token);
         if (rolesRes.success && rolesRes.data) {
           setRoles(rolesRes.data);
@@ -220,8 +221,13 @@ const RoleManagementScreen: React.FC = () => {
         setAlert({ success: false, message: response.message });
       }
       setTimeout(() => setAlert(null), 6000); 
-    } catch (error) {
-      setAlert({ success: false, message: 'Fallo la conexión con el servidor.' });
+    } catch (error: any) {
+      // CAMBIO AQUÍ: Usamos error.message para mostrar la razón exacta del rechazo
+      setAlert({ 
+        success: false, 
+        message: error.message || 'Fallo la conexión con el servidor.' 
+      });
+      setTimeout(() => setAlert(null), 6000); 
     }
   };
 

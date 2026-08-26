@@ -70,9 +70,9 @@ getPermissions: async (token: string) => {
     return response.json();
   },
 
-  //Eliminar un rol 
-  deleteRole: async (token: string, id: number) => {
-    const response = await fetchWithAuth(`${API_URL}/Roles/${id}`, {
+  // En src/services/roleService.ts
+  deleteRole: async (token: string, roleId: number) => {
+    const response = await fetchWithAuth(`${API_URL}/Roles/${roleId}`, {
       method: 'DELETE',
       headers: {
         'accept': 'text/plain',
@@ -80,8 +80,15 @@ getPermissions: async (token: string) => {
       }
     });
 
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-    return response.json();
+    // 1. Primero extraemos la respuesta JSON del servidor, sin importar si es error o éxito.
+    const data = await response.json();
+
+    // 2. Si el código HTTP es de error (400, 500), lanzamos el mensaje exacto que mandó tu API de C#
+    if (!response.ok) {
+      throw new Error(data.message || `Error HTTP: ${response.status}`);
+    }
+
+    return data;
   },
 
   // Traer a los usuarios pertenecientes a un Rol

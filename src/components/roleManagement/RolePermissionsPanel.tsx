@@ -17,6 +17,9 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
   selectedRole, allPermissions, activePerms, onTogglePerm, onSavePermissions, isAdmin 
 }) => {
   
+  // VERIFICACIÓN: Sabemos que si el ID es 0, estamos en modo "Nuevo Rol"
+  const isCreating = selectedRole.id === 0;
+
   // Agrupar permisos por módulo
   const groupedPermissions: Record<string, Permission[]> = {};
   allPermissions.forEach(p => {
@@ -35,19 +38,22 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full mt-4">
-      {/* Botón de guardar exclusivo para permisos */}
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-400">Activa o desactiva los módulos permitidos para este rol.</p>
-        <button 
-          onClick={() => onSavePermissions(selectedRole.id, activePerms)} 
-          disabled={isAdmin}
-          className={`font-bold py-2 px-6 rounded-xl transition-all shadow-lg 
-            ${isAdmin ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50' : 'bg-brand-orange hover:bg-orange-600 text-black'}`
-          }
-        >
-          Guardar Permisos
-        </button>
-      </div>
+      
+      {/* SE OCULTA TODA LA CABECERA SI ESTAMOS CREANDO UN ROL NUEVO */}
+      {!isCreating && (
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-sm text-gray-400">Activa o desactiva los módulos permitidos para este rol.</p>
+          <button 
+            onClick={() => onSavePermissions(selectedRole.id, activePerms)} 
+            disabled={isAdmin}
+            className={`font-bold py-2 px-6 rounded-xl transition-all shadow-lg 
+              ${isAdmin ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50' : 'bg-brand-orange hover:bg-orange-600 text-black'}`
+            }
+          >
+            Guardar Permisos
+          </button>
+        </div>
+      )}
 
       {/* Grid de Módulos (Tarjetas) */}
       <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full">

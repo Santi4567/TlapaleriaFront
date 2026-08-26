@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Role } from '../../types/role';
 
 interface RoleListPanelProps {
@@ -12,6 +12,29 @@ interface RoleListPanelProps {
 }
 
 const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLoading, isCollapsed, onToggleCollapse, onSelectRole, onCreateClick }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // FIX: mismo bug del sidebar. Si la lista queda scrolleada hasta abajo y
+  // luego se maximiza/restaura la ventana, el webview no reajusta el
+  // scrollTop solo. El ResizeObserver lo corrige apenas el contenedor
+  // cambia de tamaño.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const fixStuckScroll = () => {
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (el.scrollTop > maxScroll) {
+        el.scrollTop = Math.max(0, maxScroll);
+      }
+    };
+
+    const ro = new ResizeObserver(fixStuckScroll);
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, []);
+
   return (
     // Quitamos transition-all de aquí
     <div className="w-full h-full bg-[#121212] border border-gray-800 rounded-3xl p-4 flex flex-col shadow-xl min-h-0">
@@ -45,7 +68,10 @@ const RoleListPanel: React.FC<RoleListPanelProps> = ({ roles, selectedRole, isLo
       
       {/* Lista de Roles */}
       {/* Agregamos overflow-x-hidden para evitar scroll lateral al animar */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full"
+      >
         {isLoading ? (
           [1, 2, 3].map(i => <div key={i} className={`rounded-2xl bg-gray-900/50 border border-gray-800 animate-pulse ${isCollapsed ? 'h-14 w-14 mx-auto' : 'h-20 p-4'}`}></div>)
         ) : roles.length === 0 ? (
