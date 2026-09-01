@@ -1,6 +1,6 @@
 // src/components/roleManagement/PanelRol.tsx
 import React, { useState, useEffect } from 'react';
-import { Role } from '../../types/role';
+import { Role } from '../../types/rol';
 import RolePermissionsPanel from './RolePermissionsPanel';
 import RolListUser from './RolListUser';
 

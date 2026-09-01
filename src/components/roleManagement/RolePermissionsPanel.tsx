@@ -1,6 +1,6 @@
 // src/components/roleManagement/RolePermissionsPanel.tsx
 import React from 'react';
-import { Role } from '../../types/role';
+import { Role } from '../../types/rol';
 
 interface Permission { id: number; nombreSistema: string; descripcion: string; }
 
@@ -31,6 +31,7 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
     else if (p.nombreSistema.includes('inventorymovements')) moduleName = '📋 Inventario';
     else if (p.nombreSistema.includes('returns')) moduleName = '🔄 Devoluciones';
     else if (p.nombreSistema.includes('sales')) moduleName = '💰 Ventas';
+    else if (p.nombreSistema.includes('rol')) moduleName = '⚙️ Roles';
 
     if (!groupedPermissions[moduleName]) groupedPermissions[moduleName] = [];
     groupedPermissions[moduleName].push(p);

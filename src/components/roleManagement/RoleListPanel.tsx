@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Role } from '../../types/role';
+import { Role } from '../../types/rol';
 
 interface RoleListPanelProps {
   roles: Role[];

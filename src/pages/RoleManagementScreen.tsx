@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { roleService } from '../services/roleService';
-import { Role } from '../types/role';
+import { Role } from '../types/rol';
 import StatusAlert from '../components/StatusAlert';
 
 // Componentes modulares

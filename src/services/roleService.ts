@@ -1,6 +1,6 @@
 // src/services/roleService.ts
 import { fetchWithAuth } from '../utils/fetchClient';
-import { RolesApiResponse } from '../types/role';
+import { RolesApiResponse } from '../types/rol';
 
 const API_URL = import.meta.env.VITE_API_URL;
 

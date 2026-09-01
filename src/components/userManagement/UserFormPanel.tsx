@@ -1,6 +1,6 @@
 // src/components/userManagement/UserFormPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { Role } from '../../types/role';
+import { Role } from '../../types/rol';
 import { User } from '../../types/user';
 import UserConfirmModal from './UserConfirmModal';
 

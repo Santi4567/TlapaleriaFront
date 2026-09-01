@@ -3,7 +3,7 @@ import { fetchUsers, createUser, updateUser, resetUserPassword } from '../servic
 import { roleService } from '../services/roleService';
 import { useAuth } from '../context/AuthContext';
 import { User } from '../types/user';
-import { Role } from '../types/role';
+import { Role } from '../types/rol';
 import UserTable from '../components/userManagement/UserTable';
 import StatusAlert from '../components/StatusAlert'; 
 //Componetes/pantallas 
@@ -179,13 +179,6 @@ const UserManagementScreen: React.FC = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, roleFilter, showActive, currentPage, user?.token]);
-
-  const handleToggleTab = (isActiveTab: boolean) => {
-    if (showActive !== isActiveTab) {
-      setShowActive(isActiveTab);
-      setCurrentPage(1);
-    }
-  };
 
   // 3. FUNCIONES PARA MANEJAR EL MODAL UserModal
   const handleOpenCreate = () => {
