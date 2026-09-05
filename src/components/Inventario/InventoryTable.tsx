@@ -17,6 +17,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ refreshTrigger }) => {
   const [movements, setMovements] = useState<InventoryMovementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // ESTADO NUEVO PARA CONTROLAR VISIBILIDAD DE FILTROS AVANZADOS
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
   const [dateMode, setDateMode] = useState<'day' | 'range'>('day');
 
   const [localStartDate, setLocalStartDate] = useState('');
@@ -44,16 +47,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ refreshTrigger }) => {
   ) => {
     const newValue = e.target.value;
 
-    // Si el usuario está borrando (Backspace/Delete), dejamos el input tal cual
-    // para no recorrer los números de lugar y causar el error "00/08/20262"
     if (newValue.length < currentValue.length) {
       setter(newValue);
       return;
     }
 
-    // Si está escribiendo, forzamos el formato
-    let rawValue = newValue.replace(/\D/g, ''); // Quitamos todo menos números
-    if (rawValue.length > 8) rawValue = rawValue.substring(0, 8); // Máximo 8 dígitos (DDMMAAAA)
+    let rawValue = newValue.replace(/\D/g, ''); 
+    if (rawValue.length > 8) rawValue = rawValue.substring(0, 8); 
 
     let formattedValue = rawValue;
     if (rawValue.length > 4) {
@@ -127,8 +127,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ refreshTrigger }) => {
     fetchGlobalMovements();
   }, [fetchGlobalMovements, refreshTrigger]);
 
-  const handleApplyFilters = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleApplyFilters = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     
     const apiStartDate = formatDateForAPI(localStartDate);
     const apiEndDate = dateMode === 'range' ? formatDateForAPI(localEndDate) : '';
@@ -165,129 +165,160 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ refreshTrigger }) => {
           <p className="text-gray-500 text-xs mt-1">Historial general de la sucursal (Últimos 100 registros).</p>
         </div>
         
-        <form onSubmit={handleApplyFilters} className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-4">
           
-          {/* CONTROLES DE FECHA (CON INPUTS MÁS LARGOS) */}
-          <div className="flex flex-col gap-2 p-3 bg-[#121212] rounded-xl border border-gray-800">
-            
-            <div className="flex justify-between items-center gap-4">
-              <div className="flex bg-[#1c1c1c] rounded-lg p-1 border border-gray-800 w-fit">
-                <button
-                  type="button"
-                  onClick={() => { setDateMode('day'); setLocalEndDate(''); }}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${dateMode === 'day' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-white'}`}
-                >
-                  Día
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDateMode('range')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${dateMode === 'range' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-white'}`}
-                >
-                  Rango
-                </button>
-              </div>
-              <span className="text-[10px] text-gray-500 hidden sm:block">
-                Formato: <strong className="text-gray-400">DD/MM/AAAA</strong>
-              </span>
-            </div>
-            
-            <div className="flex gap-2 items-center">
-              <input 
-                type="text" 
-                value={localStartDate}
-                onChange={(e) => handleDateInput(e, setLocalStartDate, localStartDate)}
-                placeholder="DD/MM/AAAA"
-                className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-brand-orange outline-none transition-colors w-[160px] font-mono tracking-widest placeholder-gray-600"
-                title={dateMode === 'day' ? 'Fecha de búsqueda' : 'Fecha de Inicio'}
-              />
-              
-              {dateMode === 'range' && (
-                <>
-                  <span className="text-gray-600 text-sm font-bold mx-1">a</span>
+          {/* BARRA PRINCIPAL: BUSCADOR Y BOTÓN DE FILTROS */}
+          <div className="flex w-full gap-3 items-end">
+            {/* FILTRO POR PRODUCTO (Siempre Visible) */}
+            <div className="flex flex-col flex-1 relative">
+              <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Buscar Producto / Clave</label>
+              <div className="relative flex gap-2">
+                 <div className="relative flex-1">
                   <input 
                     type="text" 
-                    value={localEndDate}
-                    onChange={(e) => handleDateInput(e, setLocalEndDate, localEndDate)}
-                    placeholder="DD/MM/AAAA"
-                    className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-brand-orange outline-none transition-colors w-[160px] font-mono tracking-widest placeholder-gray-600"
-                    title="Fecha de Fin"
+                    placeholder="Ej. Cemento, THW..."
+                    value={productSearchTerm}
+                    onChange={handleProductSearchChange}
+                    className={`bg-[#121212] border rounded-xl pl-10 pr-3 py-3 text-sm text-white outline-none transition-colors w-full
+                      ${selectedFilterProduct ? 'border-brand-orange text-brand-orange font-bold' : 'border-gray-800 focus:border-brand-orange placeholder-gray-600'}`}
                   />
-                </>
+                  <svg className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                 </div>
+                 <button 
+                  onClick={() => handleApplyFilters()}
+                  className="px-6 py-3 bg-brand-orange hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md flex items-center h-[46px]"
+                 >
+                   Buscar
+                 </button>
+              </div>
+
+              {productSearchResults.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50">
+                  {productSearchResults.map(prod => (
+                    <div 
+                      key={prod.id} 
+                      onClick={() => handleSelectProduct(prod)}
+                      className="p-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800 last:border-0 flex flex-col"
+                    >
+                      <span className="text-xs font-bold text-brand-orange">{prod.internalCode}</span>
+                      <span className="text-sm text-white truncate">{prod.name}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
 
-          {/* FILTRO POR PRODUCTO */}
-          <div className="flex flex-col flex-1 min-w-[200px] relative">
-            <label className="text-[10px] font-bold text-gray-500 mb-2 tracking-wider uppercase">Filtro por Producto</label>
-            <input 
-              type="text" 
-              placeholder="Buscar clave o nombre..."
-              value={productSearchTerm}
-              onChange={handleProductSearchChange}
-              className={`bg-[#121212] border rounded-xl p-3 text-sm text-white outline-none transition-colors w-full
-                ${selectedFilterProduct ? 'border-brand-orange text-brand-orange font-bold' : 'border-gray-800 focus:border-brand-orange placeholder-gray-600'}`}
-            />
-            {productSearchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-[#1c1c1c] border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50">
-                {productSearchResults.map(prod => (
-                  <div 
-                    key={prod.id} 
-                    onClick={() => handleSelectProduct(prod)}
-                    className="p-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800 last:border-0 flex flex-col"
-                  >
-                    <span className="text-xs font-bold text-brand-orange">{prod.internalCode}</span>
-                    <span className="text-sm text-white truncate">{prod.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* FILTRO POR TIPO DE MOVIMIENTO */}
-          <div className="flex flex-col flex-1 min-w-[160px]">
-            <label className="text-[10px] font-bold text-gray-500 mb-2 tracking-wider uppercase">Tipo de Movimiento</label>
-            <select
-              value={localMovementType}
-              onChange={(e) => setLocalMovementType(e.target.value)}
-              style={{ colorScheme: 'dark' }}
-              className="bg-[#121212] border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-brand-orange outline-none transition-colors w-full"
-            >
-              <option value="" className="bg-[#121212] text-white">Todos</option>
-              <option value="1" className="bg-[#121212] text-white">Entradas (1)</option>
-              <option value="2" className="bg-[#121212] text-white">Mermas (2)</option>
-              <option value="3" className="bg-[#121212] text-white">Ajustes Positivos (3)</option>
-              <option value="4" className="bg-[#121212] text-white">Ajustes Negativos (4)</option>
-              <option value="5" className="bg-[#121212] text-white">Ventas mostrador (5)</option>
-              <option value="6" className="bg-[#121212] text-white">Devoluciones (6)</option>
-            </select>
-          </div>
-
-          {/* BOTONES DE ACCIÓN */}
-          <div className="flex gap-2 ml-auto mb-1">
-            <button 
+            <button
               type="button"
-              onClick={handleClearFilters}
-              className="px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-bold rounded-xl transition-colors"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`px-5 py-3 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 h-[46px] ${
+                showAdvancedFilters 
+                  ? 'bg-brand-orange text-black border-brand-orange shadow-[0_0_15px_rgba(255,90,0,0.2)]' 
+                  : 'bg-[#121212] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-white'
+              }`}
             >
-              Limpiar
-            </button>
-            <button 
-              type="submit"
-              className="px-6 py-3 bg-brand-orange hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md flex items-center gap-2"
-            >
-              Aplicar Filtros 🔍
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+              Filtros
             </button>
           </div>
-        </form>
+
+          {/* FILTROS AVANZADOS (Desplegables) */}
+          {showAdvancedFilters && (
+             <form onSubmit={handleApplyFilters} className="flex flex-wrap items-end gap-4 border-t border-gray-800/50 pt-5 animate-in slide-in-from-top-2 fade-in duration-200">
+               
+               {/* FILTRO POR TIPO DE MOVIMIENTO */}
+                <div className="flex flex-col flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-bold text-gray-500 mb-2 tracking-wider uppercase">Tipo de Movimiento</label>
+                  <select
+                    value={localMovementType}
+                    onChange={(e) => setLocalMovementType(e.target.value)}
+                    style={{ colorScheme: 'dark' }}
+                    className="bg-[#121212] border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-brand-orange outline-none transition-colors w-full"
+                  >
+                    <option value="" className="bg-[#121212] text-white">Todos</option>
+                    <option value="1" className="bg-[#121212] text-white">Entradas (1)</option>
+                    <option value="2" className="bg-[#121212] text-white">Mermas (2)</option>
+                    <option value="3" className="bg-[#121212] text-white">Ajustes Positivos (3)</option>
+                    <option value="4" className="bg-[#121212] text-white">Ajustes Negativos (4)</option>
+                    <option value="5" className="bg-[#121212] text-white">Ventas mostrador (5)</option>
+                    <option value="6" className="bg-[#121212] text-white">Devoluciones (6)</option>
+                  </select>
+                </div>
+
+                {/* CONTROLES DE FECHA (CON INPUTS MÁS LARGOS) */}
+                <div className="flex flex-col gap-2 p-3 bg-[#121212] rounded-xl border border-gray-800">
+                  <div className="flex justify-between items-center gap-4">
+                    <div className="flex bg-[#1c1c1c] rounded-lg p-1 border border-gray-800 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => { setDateMode('day'); setLocalEndDate(''); }}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${dateMode === 'day' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-white'}`}
+                      >
+                        Día
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDateMode('range')}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${dateMode === 'range' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-white'}`}
+                      >
+                        Rango
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                    <input 
+                      type="text" 
+                      value={localStartDate}
+                      onChange={(e) => handleDateInput(e, setLocalStartDate, localStartDate)}
+                      placeholder="DD/MM/AAAA"
+                      className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-brand-orange outline-none transition-colors w-[150px] font-mono tracking-widest placeholder-gray-600"
+                      title={dateMode === 'day' ? 'Fecha de búsqueda' : 'Fecha de Inicio'}
+                    />
+                    
+                    {dateMode === 'range' && (
+                      <>
+                        <span className="text-gray-600 text-sm font-bold mx-1">a</span>
+                        <input 
+                          type="text" 
+                          value={localEndDate}
+                          onChange={(e) => handleDateInput(e, setLocalEndDate, localEndDate)}
+                          placeholder="DD/MM/AAAA"
+                          className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-brand-orange outline-none transition-colors w-[150px] font-mono tracking-widest placeholder-gray-600"
+                          title="Fecha de Fin"
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* BOTONES DE ACCIÓN (Limpiar y Buscar) */}
+                <div className="flex gap-2 ml-auto mb-1">
+                  <button 
+                    type="button"
+                    onClick={handleClearFilters}
+                    className="px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-bold rounded-xl transition-colors"
+                  >
+                    Limpiar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-6 py-3 bg-brand-orange hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md flex items-center gap-2"
+                  >
+                    Aplicar Filtros 🔍
+                  </button>
+                </div>
+             </form>
+          )}
+        </div>
       </div>
       
       {/* TABLA DE RESULTADOS */}
       <div className="flex-1 bg-[#161616] overflow-hidden flex flex-col relative z-0">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-brand-orange animate-pulse font-bold text-lg">
-            Cargando auditoría...
+             {/* Animación de carga si lo deseas */}
+             Cargando auditoría...
           </div>
         ) : movements.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-gray-500 flex-col">

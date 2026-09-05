@@ -24,7 +24,7 @@ export const productService = {
   ): Promise<ApiResponse<PagedResponse<Product>> | null> {
     try {
       const response = await fetchWithAuth(
-        `${API_URL}?pageNumber=${pageNumber}&pageSize=${pageSize}&isActive=${isActive}`,
+        `${API_URL}?page=${pageNumber}&pageSize=${pageSize}&isActive=${isActive}`,
         {
           method: 'GET',
           headers: {

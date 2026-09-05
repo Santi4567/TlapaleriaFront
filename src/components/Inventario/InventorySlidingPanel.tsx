@@ -97,7 +97,19 @@ const InventorySlidingPanel: React.FC<InventorySlidingPanelProps> = ({
             ${showForm ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-[110%] opacity-0 pointer-events-none'}`}
         >
           <div className="w-[360px] bg-[#1c1c1c]/95 backdrop-blur-md p-6 rounded-2xl border-2 border-brand-orange/50 h-full overflow-y-auto custom-scrollbar shadow-[20px_0_30px_-15px_rgba(0,0,0,0.5)]">
-            <h3 className="text-lg font-bold text-white mb-6">Nuevo Registro</h3>
+            
+            {/* ENCABEZADO DEL FORMULARIO CON BOTÓN CERRAR */}
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-white">Nuevo Registro</h3>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="text-gray-400 hover:text-white hover:bg-gray-800 p-1.5 rounded-lg transition-colors font-bold text-sm"
+                title="Cerrar formulario"
+              >
+                ✕
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div>

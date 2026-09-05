@@ -64,13 +64,38 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
 
   const handleCalculatePrice = () => {
     const costo = Number(baseProduct.supplierPrice || 0);
-    const margen = Number(baseProduct.profitMargin || 0);
+    
     if (costo <= 0) {
       showNotification("Por favor ingresa primero un Precio de Compra mayor a 0 para calcular.");
       return;
     }
-    const calculado = costo * (1 + (margen / 100));
-    setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: Math.round(calculado) }));
+
+    const hasMargen = baseProduct.profitMargin !== "" && baseProduct.profitMargin !== null;
+    const hasPrecio = baseProduct.baseSalePrice !== "" && baseProduct.baseSalePrice !== null;
+
+    if (hasMargen && hasPrecio) {
+      // Caso 1: Los tres campos están llenos (Costo, Margen y Precio). 
+      // Se usa la primera opción: calcular y sobreescribir el Precio de Venta.
+      const margen = Number(baseProduct.profitMargin);
+      const calculado = costo * (1 + (margen / 100));
+      setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: Math.round(calculado) }));
+      
+    } else if (!hasMargen && hasPrecio) {
+      // Caso 2: Tienes Costo y Precio, pero falta el Margen. Calculamos el porcentaje de ganancia.
+      const precio = Number(baseProduct.baseSalePrice);
+      const margenCalculado = ((precio / costo) - 1) * 100;
+      setBaseProduct((prev: any) => ({ ...prev, profitMargin: Math.round(margenCalculado) }));
+      
+    } else if (hasMargen && !hasPrecio) {
+      // Caso 3: Tienes Costo y Margen, pero falta el Precio. Se calcula el Precio de Venta normal.
+      const margen = Number(baseProduct.profitMargin);
+      const calculado = costo * (1 + (margen / 100));
+      setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: Math.round(calculado) }));
+      
+    } else {
+      // Si el usuario da clic pero ambos campos (margen y precio) están vacíos.
+      showNotification("Por favor ingresa un Margen o un Precio Venta al Público para calcular.");
+    }
   };
 
   const handleSavePresentation = (e: React.MouseEvent) => {

@@ -110,7 +110,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   };
 
   const handleConfirmPriceChanges = () => {
-    calculatePrices();
+    // calculatePrices();
     setIsEditingPrice(false); 
   };
 

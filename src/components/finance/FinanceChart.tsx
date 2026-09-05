@@ -53,7 +53,7 @@ const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
             <Tooltip 
               contentStyle={{ backgroundColor: '#121212', borderColor: '#374151', borderRadius: '12px', color: '#fff' }}
               itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
-              formatter={(value: number) => [formatCurrency(value), 'Ingreso Neto']}
+              formatter={(value: any) => [formatCurrency(Number(value) || 0), 'Ingreso Neto']}
               labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
             />
             <Area 
