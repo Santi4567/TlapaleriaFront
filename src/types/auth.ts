@@ -8,8 +8,9 @@ export interface LoginRequest {
 
 // Datos del usuario dentro de una respuesta exitosa
 export interface UserData {
-  usuario: string; // El que viene del login
-  token: string;   // El que viene del login
+  usuario: string; // viene del login
+  token: string;   // Viene del login
+  refreshToken?: string; // Viene del Login
   
   // Propiedades del perfil (Opcionales al inicio, se llenan después)
   id?: number;

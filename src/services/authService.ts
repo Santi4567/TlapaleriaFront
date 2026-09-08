@@ -22,12 +22,12 @@ export const authService = {
   },
 
   // FUNCIÓN: Iniciar sesión 
-  login: async (credentials: LoginRequest): Promise<APIAuthResponse> => {
+ login: async (credentials: LoginRequest): Promise<APIAuthResponse> => {
     try {
       const response = await fetch(`${API_URL}/Auth/login`, {
         method: 'POST',
         headers: {
-          'accept': 'text/plain',
+          'accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(credentials),
@@ -43,6 +43,24 @@ export const authService = {
         message: "No se pudo conectar con el servidor de Tlapaleria LEO.",
         data: null
       };
+    }
+  },
+
+  // FUNCIÓN: Cerrar sesión en el backend
+  logout: async (refreshToken: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/Auth/logout`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error("Error al cerrar sesión en el servidor:", error);
+      return false;
     }
   },
 

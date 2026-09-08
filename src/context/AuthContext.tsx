@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { UserData, LoginRequest, ValidationErrorResponse } from '../types/auth';
 import { authService } from '../services/authService';
+import { saveSecureToken, getSecureToken, deleteSecureToken } from '../utils/authStore';
 
 interface AuthContextType {
   user: UserData | null;
@@ -9,37 +10,21 @@ interface AuthContextType {
   authError: string | null; // Error general de credenciales
   validationErrors: ValidationErrorResponse['errors'] | null; // Errores de campo (400)
   login: (credentials: LoginRequest) => Promise<boolean>; // Devuelve true si el login fue exitoso
-  logout: () => void;
+  logout: () => Promise<void>; // Asíncrono para limpiar la base de datos y el store
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Estado en memoria: EL TOKEN SOLO VIVE AQUÍ
+  // Estado en memoria: EL ACCESS TOKEN SOLO VIVE AQUÍ
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrorResponse['errors'] | null>(null);
 
-  // NUEVO: fetchClient.ts dispara estos dos eventos, pero antes NADIE los escuchaba.
-  // Esa es la causa directa de "hay que cerrar sesión manualmente":
-  //
-  // 1. 'token-refreshed': fetchClient refresca el access token en segundo plano
-  //    para poder reintentar la petición que dio 401, pero el token nuevo nunca
-  //    llegaba a `user.token`. Entonces CADA llamada futura de cualquier
-  //    componente seguía usando el token viejo (ya vencido) guardado acá,
-  //    obligando a repetir el ciclo 401 -> refresh en cada petición individual
-  //    en lugar de una sola vez cada ~15 min. Eso multiplica las llamadas a
-  //    /Auth/refresh y aumenta mucho la probabilidad de pisar una carrera
-  //    (ej. dos refresh casi simultáneos, o el WebView de Tauri tardando en
-  //    aplicar la cookie rotada) -> exactamente el patrón "a veces falla, no
-  //    siempre" que describes, porque depende de timing, no es determinístico.
-  //
-  // 2. 'auth-expired': fetchClient lo dispara cuando el refresh falla de verdad
-  //    (sesión muerta), pero como nada lo escuchaba, `user` nunca se limpiaba.
-  //    La app se quedaba "atorada": pantalla de logueado, pero cada petición
-  //    fallando en silencio (por eso "no carga nada"), sin que nada la sacara
-  //    de ese estado hasta que el usuario cerraba sesión a mano.
+  // fetchClient.ts dispara estos dos eventos:
+  // - 'token-refreshed': cuando refresca el access token en segundo plano.
+  // - 'auth-expired': cuando el refresh falla de verdad (sesión muerta).
   useEffect(() => {
     const handleTokenRefreshed = (event: Event) => {
       const { token } = (event as CustomEvent<{ token: string }>).detail;
@@ -47,10 +32,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(prevUser => (prevUser ? { ...prevUser, token } : prevUser));
     };
 
-    const handleAuthExpired = () => {
-      console.warn('[AuthContext] 🚪 Sesión realmente expirada (refresh falló). Cerrando sesión...');
+    const handleAuthExpired = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      console.warn('[AuthContext] 🚪 Sesión realmente expirada (refresh falló). Cerrando sesión...', message);
       setUser(null);
-      setAuthError('Tu sesión expiró. Por favor, inicia sesión de nuevo.');
+      setAuthError(message || 'Tu sesión expiró. Por favor, inicia sesión de nuevo.');
     };
 
     window.addEventListener('token-refreshed', handleTokenRefreshed);
@@ -76,8 +62,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Extraemos lo básico que nos dio el primer endpoint
         const token = response.data.token;
         const usuario = response.data.usuario;
+        
+        // NUEVO: Guardamos el refresh token de forma segura (encriptado en disco)
+        const refreshToken = (response.data as any).refreshToken; 
+        if (refreshToken) {
+          await saveSecureToken(refreshToken);
+        }
 
-        // AHORA SÍ: Pedimos los datos completos del perfil usando el token
+        // AHORA SÍ: Pedimos los datos completos del perfil usando el access token
         const profileResponse = await authService.getProfile(token);
 
         if (profileResponse && profileResponse.success) {
@@ -124,8 +116,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const logout = () => {
-    setUser(null); // Al setear a null, se pierde el token de la memoria.
+  const logout = async () => {
+    try {
+      // 1. Leer y desencriptar el token de forma asíncrona
+      const storedRefreshToken = await getSecureToken();
+      
+      if (storedRefreshToken) {
+        // 2. Le avisamos al backend que destruya la sesión en la base de datos
+        await authService.logout(storedRefreshToken);
+      }
+    } catch (error) {
+      console.error("[AuthContext] Error al notificar el logout al servidor:", error);
+    } finally {
+      // 3. Destruirlo del disco duro de forma segura
+      await deleteSecureToken(); 
+      
+      // 4. Limpiamos la memoria de React
+      setUser(null); 
+    }
   };
 
   return (
