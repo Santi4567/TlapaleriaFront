@@ -25,6 +25,7 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
   allPermissions.forEach(p => {
     let moduleName = "Otros";
     if (p.nombreSistema.includes('users')) moduleName = '👥 Usuarios';
+     else if (p.nombreSistema.includes('privilege_view')) moduleName = '👥  VER INFORMACION COMPLETA DE USUARIOS';
     else if (p.nombreSistema.includes('products')) moduleName = '📦 Productos';
     else if (p.nombreSistema.includes('suppliers')) moduleName = '🤝 Proveedores';
     else if (p.nombreSistema.includes('pendingorders')) moduleName = '⏳ Pedidos Pendientes';
@@ -32,6 +33,8 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
     else if (p.nombreSistema.includes('returns')) moduleName = '🔄 Devoluciones';
     else if (p.nombreSistema.includes('sales')) moduleName = '💰 Ventas';
     else if (p.nombreSistema.includes('rol')) moduleName = '⚙️ Roles';
+    else if (p.nombreSistema.includes('expenses')) moduleName = '📉 EGRESOS';
+    else if (p.nombreSistema.includes('reports')) moduleName = '📈 REPORTES FINANCIEROS';
 
     if (!groupedPermissions[moduleName]) groupedPermissions[moduleName] = [];
     groupedPermissions[moduleName].push(p);

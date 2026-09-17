@@ -1,6 +1,7 @@
 // src/components/pendingOrders/PendingOrdersFilters.tsx
 import React, { useState, useEffect } from 'react';
 import { Supplier } from '../../types/supplier';
+import CustomDatePicker from '../CustomDatePicker'; 
 
 export interface PendingFiltersState {
   search: string;
@@ -20,29 +21,14 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const [dateMode, setDateMode] = useState<'day' | 'range'>('day');
+  
+  // Ahora estas variables guardarán directamente el formato YYYY-MM-DD o ''
   const [localStartDate, setLocalStartDate] = useState('');
   const [localEndDate, setLocalEndDate] = useState('');
+  
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [localSupplierFilter, setLocalSupplierFilter] = useState('');
-  // Por defecto arranca en 0 (Pendientes)
-  const [localStatusFilter, setLocalStatusFilter] = useState('0');
-
-  const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>, currentValue: string) => {
-    const newValue = e.target.value;
-    if (newValue.length < currentValue.length) { setter(newValue); return; }
-    let rawValue = newValue.replace(/\D/g, ''); 
-    if (rawValue.length > 8) rawValue = rawValue.substring(0, 8); 
-    let formattedValue = rawValue;
-    if (rawValue.length > 4) formattedValue = `${rawValue.substring(0, 2)}/${rawValue.substring(2, 4)}/${rawValue.substring(4, 8)}`;
-    else if (rawValue.length > 2) formattedValue = `${rawValue.substring(0, 2)}/${rawValue.substring(2)}`;
-    setter(formattedValue);
-  };
-
-  const formatDateForAPI = (dateStr: string) => {
-    if (dateStr.length !== 10) return ''; 
-    const [day, month, year] = dateStr.split('/');
-    return `${year}-${month}-${day}`;
-  };
+  const [localStatusFilter, setLocalStatusFilter] = useState('0'); // Por defecto arranca en 0 (Pendientes)[cite: 9]
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -50,8 +36,9 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
         search: localSearchTerm,
         supplierId: localSupplierFilter,
         status: Number(localStatusFilter),
-        startDate: formatDateForAPI(localStartDate),
-        endDate: dateMode === 'range' ? formatDateForAPI(localEndDate) : ''
+        // Pasamos directamente el valor del DatePicker
+        startDate: localStartDate,
+        endDate: dateMode === 'range' ? localEndDate : ''
       });
     }, 400);
     return () => clearTimeout(delayDebounceFn);
@@ -120,9 +107,7 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
             <label className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Estado</label>
             <select value={localStatusFilter} onChange={(e) => setLocalStatusFilter(e.target.value)} className="bg-[#121212] border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none w-full font-bold transition-colors" style={{ colorScheme: 'dark' }}>
               <option value="0" className="text-orange-400">⏳ Pendientes</option>
-              {/* NUEVO ESTADO: PEDIDO */}
               <option value="1" className="text-purple-400">📦 Pedidos</option>
-              {/* ESTADOS CERRADOS */}
               <option value="3" className="text-green-400">✅ Completados</option>
               <option value="2" className="text-red-400">❌ Cancelados</option>
               <option value="-1" className="text-white">📋 Todos</option>
@@ -136,10 +121,21 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
                 <button type="button" onClick={() => setDateMode('range')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${dateMode === 'range' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-500 hover:text-white'}`}>Rango</button>
               </div>
             </div>
+            
+            {/* Aquí reemplazamos los inputs de texto por el nuevo componente */}
             <div className="flex gap-2 items-center">
-              <input type="text" value={localStartDate} onChange={(e) => handleDateInput(e, setLocalStartDate, localStartDate)} placeholder="DD/MM/AAAA" className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-orange-500 outline-none w-[150px] font-mono transition-colors" />
+              <CustomDatePicker 
+                value={localStartDate}
+                onChange={setLocalStartDate}
+              />
               {dateMode === 'range' && (
-                <><span className="text-gray-600 font-bold">a</span><input type="text" value={localEndDate} onChange={(e) => handleDateInput(e, setLocalEndDate, localEndDate)} placeholder="DD/MM/AAAA" className="bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 text-sm text-center text-white focus:border-orange-500 outline-none w-[150px] font-mono transition-colors" /></>
+                <>
+                  <span className="text-gray-600 font-bold">a</span>
+                  <CustomDatePicker 
+                    value={localEndDate}
+                    onChange={setLocalEndDate}
+                  />
+                </>
               )}
             </div>
           </div>

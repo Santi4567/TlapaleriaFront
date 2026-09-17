@@ -4,6 +4,7 @@ export interface FinancialChartItem {
   dateLabel: string; // YYYY-MM-DD
   salesCount: number;
   netAmount: number;
+  realProfitAmount: number;
 }
 
 export interface FinancialReportData {
@@ -11,6 +12,8 @@ export interface FinancialReportData {
   grossSalesAmount: number;
   totalRefundedAmount: number;
   netSalesAmount: number;
+  costOfGoodsSold: number;   
+  realProfitAmount: number;
   chartData: FinancialChartItem[];
 }
 
