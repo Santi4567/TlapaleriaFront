@@ -31,6 +31,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     code: '',
     barcode: '',
     price: "",
+    supplierPrice: "",
     stockFactor: 1
   });
 
@@ -99,37 +100,44 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
   };
 
   const handleSavePresentation = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const finalCode = hasCustomCode && currentPres.code.trim() !== '' ? currentPres.code.trim() : baseProduct.internalCode;
-    const finalBarcode = hasCustomBarcode && currentPres.barcode.trim() !== '' ? currentPres.barcode.trim() : baseProduct.barcode;
+  e.preventDefault();
+  const finalCode = hasCustomCode && currentPres.code.trim() !== '' ? currentPres.code.trim() : baseProduct.internalCode;
+  const finalBarcode = hasCustomBarcode && currentPres.barcode.trim() !== '' ? currentPres.barcode.trim() : baseProduct.barcode;
 
-    if (!currentPres.name.trim() || !finalCode || Number(currentPres.price) <= 0) {
-      showNotification("Llena el Nombre, asegúrate de tener un Código y un Precio mayor a 0.");
-      return;
-    }
+  if (!currentPres.name.trim() || !finalCode || Number(currentPres.price) <= 0) {
+    showNotification("Llena el Nombre, asegúrate de tener un Código y un Precio mayor a 0.");
+    return;
+  }
 
-    const updatedPres = { 
-      ...currentPres, 
-      code: finalCode,
-      barcode: finalBarcode || "",
-      price: Number(currentPres.price),
-      stockFactor: Number(currentPres.stockFactor || 1)
-    };
+  // --- NUEVO: validación de costo ---
+  if (currentPres.supplierPrice === "" || Number(currentPres.supplierPrice) < 0) {
+    showNotification("El Costo de Proveedor de esta variante no puede estar vacío ni ser negativo.");
+    return;
+  }
 
-    if (editingIndex !== null) {
-      const newList = [...presentations];
-      newList[editingIndex] = updatedPres;
-      setPresentations(newList);
-      setEditingIndex(null);
-    } else {
-      setPresentations([...presentations, updatedPres]);
-    }
-
-    setCurrentPres({ name: '', code: '', barcode: '', price: "", stockFactor: 1 });
-    setHasCustomCode(false);
-    setHasCustomBarcode(false);
-    setIsVariantFormOpen(false); 
+  const updatedPres = { 
+    ...currentPres, 
+    code: finalCode,
+    barcode: finalBarcode || "",
+    price: Number(currentPres.price),
+    supplierPrice: Number(currentPres.supplierPrice), // <-- NUEVO
+    stockFactor: Number(currentPres.stockFactor || 1)
   };
+
+  if (editingIndex !== null) {
+    const newList = [...presentations];
+    newList[editingIndex] = updatedPres;
+    setPresentations(newList);
+    setEditingIndex(null);
+  } else {
+    setPresentations([...presentations, updatedPres]);
+  }
+
+  setCurrentPres({ name: '', code: '', barcode: '', price: "", supplierPrice: "", stockFactor: 1 });
+  setHasCustomCode(false);
+  setHasCustomBarcode(false);
+  setIsVariantFormOpen(false); 
+};
 
   const handleEditPresentation = (idx: number) => {
     const item = presentations[idx];
@@ -141,15 +149,25 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
   };
 
   const handleDeletePresentation = (idx: number) => {
+    const item = presentations[idx];
+    const yaExisteEnBD = !!item.id && Number(item.id) > 0;
+
+    if (yaExisteEnBD) {
+      const confirmado = window.confirm(
+        `"${item.name}" ya existe en el catálogo. Al quitarla y guardar, esta presentación se DESACTIVARÁ (no se borra, pero dejará de venderse). ¿Continuar?`
+      );
+      if (!confirmado) return;
+    }
+
     setPresentations(presentations.filter((_, i) => i !== idx));
     if (editingIndex === idx) {
       setEditingIndex(null);
-      setCurrentPres({ name: '', code: '', barcode: '', price: "", stockFactor: 1 });
+      setCurrentPres({ name: '', code: '', barcode: '', price: "", supplierPrice: "", stockFactor: 1 });
       setHasCustomCode(false);
       setHasCustomBarcode(false);
       setIsVariantFormOpen(false);
     }
-    showNotification("Variante eliminada de la lista.");
+    showNotification(yaExisteEnBD ? "Se desactivará al guardar los cambios." : "Variante eliminada de la lista.");
   };
 
   const handleFinish = (e: React.MouseEvent) => {
@@ -438,16 +456,36 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-brand-orange font-bold mb-2">Precio de Venta ($) *</label>
                   <input type="number" step="1" value={currentPres.price} onChange={e => handleNumberChange("price", e.target.value, true)} className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-2xl font-black rounded-xl px-4 py-3 focus:border-brand-orange focus:outline-none font-mono text-brand-orange" />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold mb-2">Costo Proveedor ($) *</label>
+                  <input type="number" step="0.01" placeholder="Costo de compra de esta variante" value={currentPres.supplierPrice} onChange={e => handleNumberChange("supplierPrice", e.target.value, true)} className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-lg rounded-xl px-4 py-3 focus:border-brand-orange focus:outline-none font-mono font-bold" />
                 </div>
                 <div>
                   <label className="block text-gray-300 font-bold mb-2">Factor de Stock (Padre = 1)</label>
                   <input type="number" step="any" value={currentPres.stockFactor === "" ? "" : currentPres.stockFactor} onChange={e => handleNumberChange("stockFactor", e.target.value, true)} className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-lg rounded-xl px-4 py-3 focus:border-brand-orange focus:outline-none font-mono font-bold" />
                 </div>
               </div>
+
+              {/* --- NUEVO: indicador de margen en vivo, justo lo que hubiera detectado el error del cable --- */}
+              {Number(currentPres.price) > 0 && currentPres.supplierPrice !== "" && (
+                (() => {
+                  const precio = Number(currentPres.price);
+                  const costo = Number(currentPres.supplierPrice);
+                  const margen = ((precio - costo) / precio) * 100;
+                  const esRiesgoso = margen < 15;
+                  return (
+                    <div className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-between ${esRiesgoso ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                      <span>{esRiesgoso ? '⚠️ Margen bajo o negativo' : '✓ Margen saludable'}</span>
+                      <span>{margen.toFixed(1)}%</span>
+                    </div>
+                  );
+                })()
+              )}
 
               <div className="flex justify-between items-center pt-4 border-t border-gray-800/50">
                 {editingIndex !== null ? (
@@ -501,33 +539,43 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
             </div>
           </div>
 
-          {presentations.map((p, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => { scrollToSection('seccion-variantes'); handleEditPresentation(idx); }} 
-              className="cursor-pointer p-4 bg-[#121212] border border-gray-700 rounded-2xl hover:border-gray-500 transition-all shadow-sm group relative"
-            >
-               <div className="flex justify-between items-start mb-1">
-                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{idx + 2}. Variante</p>
-                 <div className="flex items-center space-x-2">
-                   <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">✎ Editar</span>
-                   <button 
-                     type="button"
-                     onClick={(e) => { e.stopPropagation(); handleDeletePresentation(idx); }}
-                     className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-0.5"
-                     title="Eliminar esta presentación"
-                   >
-                     🗑️
-                   </button>
-                 </div>
-               </div>
-               <p className="font-extrabold text-white text-md truncate mt-1">{p.name}</p>
-               <div className="flex justify-between items-end mt-2">
-                 <p className="text-xl font-black font-mono text-white">${p.price}</p>
-                 <p className="text-xs text-gray-400 font-bold bg-black/40 px-2 py-1 rounded">Factor: x{p.stockFactor}</p>
-               </div>
-            </div>
-          ))}
+          {presentations.map((p, idx) => {
+            const margen = p.supplierPrice > 0 && p.price > 0 
+              ? (((p.price - p.supplierPrice) / p.price) * 100).toFixed(0) 
+              : null;
+            return (
+              <div 
+                key={idx} 
+                onClick={() => { scrollToSection('seccion-variantes'); handleEditPresentation(idx); }} 
+                className="cursor-pointer p-4 bg-[#121212] border border-gray-700 rounded-2xl hover:border-gray-500 transition-all shadow-sm group relative"
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{idx + 2}. Variante</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">✎ Editar</span>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeletePresentation(idx); }}
+                      className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-0.5"
+                      title="Eliminar esta presentación"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+                <p className="font-extrabold text-white text-md truncate mt-1">{p.name}</p>
+                <div className="flex justify-between items-end mt-2">
+                  <p className="text-xl font-black font-mono text-white">${p.price}</p>
+                  <p className="text-xs text-gray-400 font-bold bg-black/40 px-2 py-1 rounded">Factor: x{p.stockFactor}</p>
+                </div>
+                {margen !== null && (
+                  <p className={`text-[10px] font-bold mt-1 ${Number(margen) < 15 ? 'text-red-400' : 'text-green-400'}`}>
+                    Margen: {margen}%
+                  </p>
+                )}
+              </div>
+            );
+          })}
 
         </div>
       </div>

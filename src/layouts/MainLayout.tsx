@@ -6,17 +6,20 @@ import Sidebar from '../components/Sidebar';
 import HomeScreen from '../pages/HomeScreen';
 import PosScreen from '../pages/PosScreen';
 import ProductsScreen from '../pages/ProductsScreen';
+import ProductHistoryScreen from "../pages/ProductHistoryScreen";
 import SuppliersScreen from '../pages/SuppliersScreen';
 import PendingOrdersScreen from '../pages/PendingOrdersScreen';
 import InventoryScreen from '../pages/InventoryScreen';
 import FinanceScreen from '../pages/FinanceScreen';
+import ExpensesScreen  from "../pages/ExpensesScreen";
 import UserScreen from '../pages/UserScreen';
 import UserManagementScreen from '../pages/UserManagementScreen';
 import RoleManagementScreen from '../pages/RoleManagementScreen';
 //import ConfigurationScreen from '../pages/ConfigurationScreen';
 
+
 const MainLayout: React.FC = () => {
-  // Ahora la vista por defecto al iniciar sesión es el Dashboard (HOME)
+  // Ahora la vista por defecto al iniciar sesión es el Dashboard (HOME) 
   const [currentView, setCurrentView] = useState('HOME');
 
   const renderView = () => {
@@ -29,8 +32,10 @@ const MainLayout: React.FC = () => {
       case 'INVENTORY': return <InventoryScreen />;
       case 'FINANCE': return <FinanceScreen />;
       case 'USER': return <UserScreen />;
-      case 'USER_MANAGEMENT': return <UserManagementScreen/>
+      case 'USER_MANAGEMENT': return <UserManagementScreen/>;
       case 'ROL': return <RoleManagementScreen />;
+      case 'EXPENSES' : return <ExpensesScreen />;
+      case 'PRODUCT_HISTORY' : return <ProductHistoryScreen /> ;
       default: return <HomeScreen />;
     }
   };

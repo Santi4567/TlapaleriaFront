@@ -11,6 +11,7 @@ export interface ProductPresentation {
   code: string | null;
   barcode: string | null;
   price: number;
+  supplierPrice: number;
   stockFactor: number;
   isActive: boolean;
 }
@@ -33,7 +34,6 @@ export interface Product {
   location: string | null;
   supplierId: number;
   supplier?: SupplierSummary | null;
-  supplierPrice: number;
   profitMargin: number | null;
   lastOrderDate?: string | null;
   unitOfMeasure: string;
@@ -61,10 +61,12 @@ export interface ExpiringProduct {
 // ==========================================
 
 export interface CreatePresentationRequest {
+  id?: number | null;
   name: string;
   code?: string | null;
   barcode?: string | null;
   price: number;
+  supplierPrice: number; 
   stockFactor: number;
 }
 
@@ -76,7 +78,6 @@ export interface CreateProductRequest {
   brand?: string | null;
   location?: string | null;
   supplierId: number;
-  supplierPrice: number;
   profitMargin?: number | null;
   unitOfMeasure: string;
   isInventoryTracked: boolean;
@@ -97,6 +98,7 @@ export interface UpdatePresentationRequest {
   code?: string | null;
   barcode?: string | null;
   price: number;
+  supplierPrice: number;
   stockFactor: number;
 }
 
@@ -108,7 +110,6 @@ export interface UpdateProductRequest {
   brand?: string | null;
   location?: string | null;
   supplierId: number;
-  supplierPrice: number;
   profitMargin?: number | null;
   unitOfMeasure: string;
   isInventoryTracked: boolean;

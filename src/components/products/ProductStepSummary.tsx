@@ -34,6 +34,7 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
     code: baseProduct.internalCode || "BASE",
     barcode: baseProduct.barcode || "",
     price: Number(baseProduct.baseSalePrice || 0),
+    supplierPrice: Number(baseProduct.supplierPrice || 0),
     stockFactor: Number(baseProduct.baseStockFactor || 1)
   };
 
@@ -128,13 +129,14 @@ const ProductStepSummary: React.FC<ProductStepSummaryProps> = ({
                     {isBase ? (
                       <>
                         <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Proveedor</span><strong className="text-white text-base">{supplierName}</strong></div>
-                        <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Costo / Margen</span><strong className="text-white text-base">${baseProduct.supplierPrice} ({baseProduct.profitMargin}%)</strong></div>
+                        <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Costo / Margen</span><strong className="text-white text-base">${pres.supplierPrice} ({baseProduct.profitMargin}%)</strong></div>
                         <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Stock Inicial</span><strong className="text-white text-base">{baseProduct.isInventoryTracked ? `${baseProduct.initialStock} ${baseProduct.unitOfMeasure}` : 'N/S'}</strong></div>
                         <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Caducidad</span><strong className="text-white text-base">{baseProduct.hasExpiration ? baseProduct.nextExpirationDate : 'No caduca'}</strong></div>
                       </>
                     ) : (
                       <>
                         <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Código (SKU)</span><strong className="text-white text-base">{pres.code}</strong></div>
+                        <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Costo Proveedor</span><strong className="text-white text-base">${pres.supplierPrice}</strong></div> {/* <-- NUEVO */}
                         <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Factor de Descuento</span><strong className="text-white text-base">x{pres.stockFactor}</strong></div>
                       </>
                     )}

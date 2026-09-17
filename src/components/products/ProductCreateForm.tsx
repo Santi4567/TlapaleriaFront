@@ -59,54 +59,55 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
   const [baseProduct, setBaseProduct] = useState<any>(initialBaseProduct);
   const [presentations, setPresentations] = useState<any[]>([]); 
 
-  useEffect(() => {
-    if (productToEdit) {
-      let formattedDate = '';
-      if (productToEdit.nextExpirationDate) {
-        formattedDate = productToEdit.nextExpirationDate.split('T')[0];
-      }
-
-      const basePres = productToEdit.presentations?.length > 0 ? productToEdit.presentations[0] : null;
-      const childPresentations = productToEdit.presentations?.length > 1 ? productToEdit.presentations.slice(1) : [];
-
-      setBaseProduct({
-        id: productToEdit.id,
-        internalCode: productToEdit.internalCode || '',
-        originalInternalCode: productToEdit.internalCode || '', // <-- GUARDAMOS SU CLAVE INTACTA AQUÍ
-        barcode: productToEdit.barcode || '',
-        name: productToEdit.name || '',
-        description: productToEdit.description || '',
-        brand: productToEdit.brand || '',
-        location: productToEdit.location || '',
-        supplierId: productToEdit.supplierId || 0,
-        supplierPrice: productToEdit.supplierPrice || "",
-        profitMargin: productToEdit.profitMargin || "",
-        baseSalePrice: basePres ? basePres.price : "",
-        baseStockFactor: basePres ? basePres.stockFactor : "1",
-        basePresentationId: basePres ? basePres.id : null,
-        unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
-        isInventoryTracked: productToEdit.isInventoryTracked,
-        allowFractions: productToEdit.allowFractions || false,
-        initialStock: productToEdit.currentStock || "", 
-        hasExpiration: productToEdit.hasExpiration,
-        nextExpirationDate: formattedDate
-      });
-
-      setPresentations(childPresentations.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        code: p.code,
-        barcode: p.barcode || '',
-        price: p.price,
-        stockFactor: p.stockFactor
-      })));
-    } else {
-      setBaseProduct(initialBaseProduct);
-      setPresentations([]);
+useEffect(() => {
+  if (productToEdit) {
+    let formattedDate = '';
+    if (productToEdit.nextExpirationDate) {
+      formattedDate = productToEdit.nextExpirationDate.split('T')[0];
     }
-    setStep(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productToEdit]);
+
+    const basePres = productToEdit.presentations?.length > 0 ? productToEdit.presentations[0] : null;
+    const childPresentations = productToEdit.presentations?.length > 1 ? productToEdit.presentations.slice(1) : [];
+
+    setBaseProduct({
+      id: productToEdit.id,
+      internalCode: productToEdit.internalCode || '',
+      originalInternalCode: productToEdit.internalCode || '',
+      barcode: productToEdit.barcode || '',
+      name: productToEdit.name || '',
+      description: productToEdit.description || '',
+      brand: productToEdit.brand || '',
+      location: productToEdit.location || '',
+      supplierId: productToEdit.supplierId || 0,
+      supplierPrice: basePres ? basePres.supplierPrice : "", // <-- CORREGIDO: viene de la presentación base
+      profitMargin: productToEdit.profitMargin || "",
+      baseSalePrice: basePres ? basePres.price : "",
+      baseStockFactor: basePres ? basePres.stockFactor : "1",
+      basePresentationId: basePres ? basePres.id : null,
+      unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
+      isInventoryTracked: productToEdit.isInventoryTracked,
+      allowFractions: productToEdit.allowFractions || false,
+      initialStock: productToEdit.currentStock || "",
+      hasExpiration: productToEdit.hasExpiration,
+      nextExpirationDate: formattedDate
+    });
+
+    setPresentations(childPresentations.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      code: p.code,
+      barcode: p.barcode || '',
+      price: p.price,
+      supplierPrice: p.supplierPrice, // <-- CORREGIDO: faltaba esta línea
+      stockFactor: p.stockFactor
+    })));
+  } else {
+    setBaseProduct(initialBaseProduct);
+    setPresentations([]);
+  }
+  setStep(1);
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [productToEdit]);
 
   useEffect(() => {
     const loadSuppliers = async () => {
@@ -150,6 +151,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       code: baseProduct.internalCode || "BASE",
       barcode: baseProduct.barcode || "",
       price: Number(baseProduct.baseSalePrice || 0),
+      supplierPrice: Number(baseProduct.supplierPrice || 0),
       stockFactor: Number(baseProduct.baseStockFactor || 1)
     };
 
@@ -159,6 +161,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       code: p.code,
       barcode: p.barcode || "",
       price: Number(p.price),
+      supplierPrice: Number(p.supplierPrice || 0), 
       stockFactor: Number(p.stockFactor)
     }));
 
@@ -172,7 +175,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       brand: baseProduct.brand?.trim() || "",
       location: baseProduct.location?.trim() || "",
       supplierId: Number(baseProduct.supplierId),
-      supplierPrice: Number(baseProduct.supplierPrice || 0),
       profitMargin: Number(baseProduct.profitMargin || 0),
       unitOfMeasure: baseProduct.unitOfMeasure.trim().toUpperCase(),
       isInventoryTracked: baseProduct.isInventoryTracked,

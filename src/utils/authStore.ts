@@ -1,12 +1,14 @@
-import { load } from '@tauri-apps/plugin-store';
+// 1. Importamos también el tipo 'Store'
+import { load, Store } from '@tauri-apps/plugin-store';
 
-let storeInstance: any = null;
+// 2. Reemplazamos el 'any' por 'Store | null'
+let storeInstance: Store | null = null;
 
 // Tu llave secreta (idealmente en tu .env)
 const SECRET_KEY = import.meta.env.VITE_ENCRYPT_KEY || 'TlapaleriaLeo_SecureKey_2026';
 
 // 1. Inicializar el Store de Tauri
-const getAuthStore = async () => {
+const getAuthStore = async (): Promise<Store> => {
   if (!storeInstance) {
     storeInstance = await load('auth.json', { autoSave: true });
   }
