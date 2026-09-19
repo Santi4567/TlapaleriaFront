@@ -1,7 +1,8 @@
 // src/components/ProductHistory/GraphHistory.tsx
 import React, { useState, useEffect } from 'react';
 import { Product, ProductPresentation } from '../../types/product';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+// NUEVO: Importamos ReferenceLine de recharts
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import CustomDatePicker from '../CustomDatePicker';
 import StatusAlert from '../StatusAlert';
 import { useAuth } from '../../context/AuthContext';
@@ -51,7 +52,11 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
 
     if (response && response.success) {
       const formattedData = response.data.history.map(record => {
-        const dataPoint: any = { date: record.date.split('T')[0] };
+        // NUEVO: Extraemos el campo 'actual' que manda el backend
+        const dataPoint: any = { 
+          date: record.date.split('T')[0],
+          isActual: record.actual 
+        };
         
         Object.entries(record.presentationPrices).forEach(([id, price]) => {
           dataPoint[`price_${id}`] = price;
@@ -80,20 +85,14 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
   const currentPriceKey = `price_${presentation.id}`;
   const currentCostKey = `cost_${presentation.id}`;
   
-  // ==========================================
-  // NUEVO: FILTRO ESTRICTO DE DATOS NULOS
-  // ==========================================
   const chartData = historyData.filter(d => {
     if (viewMode === 'separado') {
-      // Ignorar por completo si AMBOS (precio y costo) son nulos para la presentación activa
       return d[currentPriceKey] != null || d[currentCostKey] != null;
     } else {
-      // En "Todas Juntas", ignorar la fila solo si NINGUNA presentación tiene datos válidos
       return product.presentations.some(p => d[`price_${p.id}`] != null || d[`cost_${p.id}`] != null);
     }
   });
 
-  // Usamos 'chartData' en lugar de 'historyData' para todos los cálculos a partir de aquí
   const validPriceData = chartData.filter(d => d[currentPriceKey] != null);
   const validCostData = chartData.filter(d => d[currentCostKey] != null);
 
@@ -116,6 +115,10 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
     const lastCost = validCostData[validCostData.length - 1][currentCostKey];
     if (firstCost > 0) costVariation = ((lastCost - firstCost) / firstCost) * 100;
   }
+
+  // NUEVO: Buscamos qué fecha corresponde al punto 'actual' para dibujar la línea
+  const actualPoint = chartData.find(d => d.isActual);
+  const actualDate = actualPoint ? actualPoint.date : null;
 
   const renderVariationBadge = (label: string, variation: number, isCost: boolean = false) => {
     if (variation === 0) return null;
@@ -140,6 +143,7 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
   const handleClearDates = () => {
     setStartDate('');
     setEndDate('');
+    // Al mandar '', tu API devolverá el rango por defecto de los 12 meses
     fetchGraphData('', '');
   };
 
@@ -167,9 +171,9 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
           <button 
             onClick={handleClearDates}
             className="text-gray-500 hover:text-brand-orange font-bold text-sm underline px-2 py-2 transition-colors h-[38px] flex items-center"
-            title="Ver desde la creación del producto"
+            title="Ver los últimos 12 meses"
           >
-            Todo el historial
+            Ver últimos 12 meses
           </button>
         </div>
 
@@ -238,23 +242,53 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
           </div>
         ) : (
           <div className="w-full flex-1 overflow-x-auto custom-scrollbar pb-2">
-            {/* Calculamos el ancho de la gráfica basándonos en chartData */}
             <div style={{ minWidth: Math.max(100, chartData.length * 80) + 'px', height: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                   <XAxis dataKey="date" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} tickMargin={10} />
                   <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={(value) => `$${value}`} />
+                  
                   <Tooltip 
+                    shared={false}
                     contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#374151', borderRadius: '0.5rem', color: '#fff' }}
                     itemStyle={{ fontWeight: 'bold' }}
-                    formatter={(value: number | null, name: string) => {
-                      if (value == null) return ['Sin registro', name.startsWith('price_') ? 'Precio Público' : 'Costo Proveedor'];
-                      return [`$${value.toFixed(2)}`, name.startsWith('price_') ? 'Precio Público' : 'Costo Proveedor'];
+                    labelFormatter={(label, payload) => {
+                      const isActualNode = payload && payload.length > 0 && payload[0].payload.isActual;
+                      return isActualNode ? `${label} — PRECIO VIGENTE` : label;
+                    }}
+                    // CAMBIO AQUÍ: (value: any, name: any)
+                    formatter={(value: any, name: any) => {
+                      let displayName = String(name);
+                      if (displayName.startsWith('price_')) displayName = 'Precio Público (Otra pres.)';
+                      if (displayName.startsWith('cost_')) displayName = 'Costo Proveedor (Otra pres.)';
+
+                      if (value == null) return ['Sin registro', displayName];
+                      return [`$${Number(value).toFixed(2)}`, displayName];
                     }}
                   />
+                  
+                  {/* Aquí se genera la leyenda */}
                   <Legend wrapperStyle={{ paddingTop: '20px' }}/>
 
+                  {actualDate && (
+                    <ReferenceLine 
+                      x={actualDate} 
+                      stroke="#22c55e" 
+                      strokeDasharray="4 4" 
+                      strokeWidth={2}
+                      label={{ 
+                        position: 'insideTopLeft', 
+                        value: 'ACTUAL', 
+                        fill: '#22c55e', 
+                        fontSize: 12, 
+                        fontWeight: 'bold',
+                        offset: 10
+                      }} 
+                    />
+                  )}
+
+                  {/* Líneas de fondo (Todas Juntas) - Mantenemos legendType="none" para que no ensucien la leyenda principal */}
                   {viewMode === 'junto' && product.presentations
                     .filter(p => p.id !== presentation.id)
                     .map(p => (
@@ -265,8 +299,25 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                     ))
                   }
 
-                  <Line type="monotone" name={`price_${presentation.id}`} dataKey={`price_${presentation.id}`} stroke="#ff6b00" strokeWidth={3} activeDot={{ r: 6, fill: '#ff6b00', stroke: '#1a1a1a', strokeWidth: 2 }} connectNulls />
-                  <Line type="monotone" name={`cost_${presentation.id}`} dataKey={`cost_${presentation.id}`} stroke="#10b981" strokeWidth={3} activeDot={{ r: 6, fill: '#10b981', stroke: '#1a1a1a', strokeWidth: 2 }} connectNulls />
+                  {/* LÍNEAS PRINCIPALES: Aquí cambiamos el "name" para corregir la leyenda */}
+                  <Line 
+                    type="monotone" 
+                    name="Precio Público" 
+                    dataKey={`price_${presentation.id}`} 
+                    stroke="#ff6b00" 
+                    strokeWidth={3} 
+                    activeDot={{ r: 6, fill: '#ff6b00', stroke: '#1a1a1a', strokeWidth: 2 }} 
+                    connectNulls 
+                  />
+                  <Line 
+                    type="monotone" 
+                    name="Costo Proveedor" 
+                    dataKey={`cost_${presentation.id}`} 
+                    stroke="#10b981" 
+                    strokeWidth={3} 
+                    activeDot={{ r: 6, fill: '#10b981', stroke: '#1a1a1a', strokeWidth: 2 }} 
+                    connectNulls 
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>

@@ -19,9 +19,11 @@ const ProductGraphHome: React.FC<Props> = ({ product }) => {
   }, [product]);
 
   return (
-    // Agregamos min-h-0 para evitar que Flexbox rompa el layout vertical
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1 min-h-0 overflow-hidden">
-      <div className="xl:col-span-1 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6 shadow-lg flex flex-col overflow-hidden relative">
+    // CAMBIO CLAVE AQUÍ: flex-col en móvil, grid en escritorio, y overflow-y-auto para evitar que se aplaste
+    <div className="flex flex-col xl:grid xl:grid-cols-3 gap-6 flex-1 min-h-0 overflow-y-auto xl:overflow-hidden custom-scrollbar pr-1 xl:pr-0 pb-4 xl:pb-0">
+      
+      {/* Columna Izquierda: shrink-0 evita que se aplaste al redimensionar */}
+      <div className="xl:col-span-1 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6 shadow-lg flex flex-col overflow-hidden relative shrink-0">
         <ProductInformation 
           product={product} 
           selectedPresentation={selectedPresentation}
@@ -29,7 +31,8 @@ const ProductGraphHome: React.FC<Props> = ({ product }) => {
         />
       </div>
 
-      <div className="xl:col-span-2 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6 shadow-lg flex flex-col min-h-0">
+      {/* Columna Derecha: min-h para garantizar espacio en pantallas pequeñas */}
+      <div className="xl:col-span-2 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6 shadow-lg flex flex-col min-h-[500px] xl:min-h-0 shrink-0">
         {selectedPresentation ? (
           <GraphHistory 
             product={product} 

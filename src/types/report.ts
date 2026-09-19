@@ -1,5 +1,5 @@
 // src/types/report.ts
-import { ApiResponse } from './product'; // Reutilizamos ApiResponse si ya lo tienes ahí
+//import { ApiResponse } from './product'; // Reutilizamos ApiResponse si ya lo tienes ahí
 
 export interface PresentationHistoryInfo {
   presentationId: number;
@@ -10,6 +10,7 @@ export interface PriceHistoryRecord {
   date: string;
   presentationPrices: Record<string, number | null>;
   presentationSupplierPrices: Record<string, number | null>;
+  actual: boolean;
 }
 
 export interface ProductPriceHistory {
@@ -17,4 +18,5 @@ export interface ProductPriceHistory {
   productName: string;
   presentations: PresentationHistoryInfo[];
   history: PriceHistoryRecord[];
+  actual: boolean;
 }

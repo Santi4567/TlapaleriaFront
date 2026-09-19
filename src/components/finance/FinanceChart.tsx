@@ -58,7 +58,7 @@ const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
             />
             <Tooltip 
               contentStyle={{ backgroundColor: '#121212', borderColor: '#374151', borderRadius: '12px', color: '#fff' }}
-              formatter={(value: any, name: string) => [
+              formatter={(value: any, name: any) => [
                 formatCurrency(Number(value) || 0), 
                 name === 'netAmount' ? 'Venta Neta' : 'Ganancia Real'
               ]}

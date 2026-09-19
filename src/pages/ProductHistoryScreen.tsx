@@ -46,6 +46,18 @@ const ProductHistoryScreen: React.FC = () => {
     }, 50);
   };
 
+  // ESCUCHADOR GLOBAL PARA LA TECLA ESCAPE
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedProduct) {
+        handleCloseGraphView();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [selectedProduct]);
+
   return (
     <div className="flex-1 w-full h-full bg-[#111111] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
       

@@ -19,6 +19,18 @@ const SearchBarHistory: React.FC<Props> = ({ searchTerm, onSearchChange, results
     if (!searchTerm) inputRef.current?.focus();
   }, [results, searchTerm]);
 
+  useEffect(() => {
+    const handleF3 = (e: KeyboardEvent) => {
+      if (e.key === 'F3') {
+        e.preventDefault(); // Evita que se abra el buscador de Windows/Linux
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleF3);
+    return () => window.removeEventListener('keydown', handleF3);
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (results.length === 0) return;
 
