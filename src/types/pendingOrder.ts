@@ -1,3 +1,4 @@
+// pendingOrder.ts
 import { Supplier } from './supplier';
 
 export interface CreatePendingOrderRequest {
@@ -22,9 +23,16 @@ export interface PendingOrderProduct {
   location?: string;
   currentStock?: number;
   isInventoryTracked?: boolean;
-  supplierPrice?: number;
   profitMargin?: number;
-  presentations?: { id: number; stockFactor: number; [key: string]: any }[];
+  presentations?: { 
+    id: number; 
+    name: string;
+    price: number;
+    supplierPrice: number;
+    stockFactor: number; 
+    isActive: boolean;
+    [key: string]: any 
+  }[];
 }
 
 export interface PendingOrderUser {
@@ -55,7 +63,6 @@ export interface APIPendingOrderResponse {
   data: PendingOrder;
 }
 
-// NUEVO: Estructura de paginación basada en tu JSON real
 export interface PaginatedPendingOrders {
   data: PendingOrder[];
   totalItems: number;
@@ -63,7 +70,6 @@ export interface PaginatedPendingOrders {
   currentPage: number;
 }
 
-// ACTUALIZADO: La respuesta de lista envuelve a PaginatedPendingOrders
 export interface APIPendingOrdersListResponse {
   success: boolean;
   message: string;

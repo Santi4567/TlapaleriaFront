@@ -26,15 +26,14 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   const [receivedQty, setReceivedQty] = useState('');
   const [movementNotes, setMovementNotes] = useState('');
   
-  // Estados de Precios
+  // Estados de Precios (Ahora por presentación)
   const [isEditingPrice, setIsEditingPrice] = useState(false);
-  const [newSupplierPrice, setNewSupplierPrice] = useState('');
   const [newProfitMargin, setNewProfitMargin] = useState('');
+  const [newSupplierPrices, setNewSupplierPrices] = useState<Record<number, string>>({});
   const [newPresentationPrices, setNewPresentationPrices] = useState<Record<number, string>>({});
 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const qtyInputRef = useRef<HTMLInputElement>(null);
-  const supplierPriceInputRef = useRef<HTMLInputElement>(null);
 
   // ================= CARGA DE DATOS =================
   useEffect(() => {
@@ -64,9 +63,20 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
       setReceivedQty('');
       setMovementNotes('');
       setIsEditingPrice(false);
-      setNewSupplierPrice(currentOrder.product?.supplierPrice?.toString() || '');
+      
       setNewProfitMargin(currentOrder.product?.profitMargin?.toString() || '');
-      setNewPresentationPrices({});
+      
+      // Inicializar costos y precios por presentación
+      const initialCosts: Record<number, string> = {};
+      const initialPrices: Record<number, string> = {};
+      
+      currentOrder.product?.presentations?.forEach(pres => {
+        initialCosts[pres.id] = pres.supplierPrice?.toString() || '0';
+        initialPrices[pres.id] = pres.price?.toString() || '0';
+      });
+
+      setNewSupplierPrices(initialCosts);
+      setNewPresentationPrices(initialPrices);
       
       if (currentOrder.product?.isInventoryTracked) {
         setTimeout(() => qtyInputRef.current?.focus(), 150);
@@ -87,30 +97,40 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
   const displayData = currentOrder ? getDisplayData(currentOrder) : null;
 
   // ================= LÓGICA DE PRECIOS =================
-  const calculatePrices = () => {
-    const cost = parseFloat(newSupplierPrice);
+  
+  // Calcular precio público solo para UNA presentación específica
+  const calculatePriceForPresentation = (presId: number) => {
+    const cost = parseFloat(newSupplierPrices[presId]);
     const margin = parseFloat(newProfitMargin);
-    if (isNaN(cost) || cost <= 0 || isNaN(margin)) return;
+    if (isNaN(cost) || isNaN(margin)) return;
 
     const marginMultiplier = 1 + (margin / 100); 
-    const presentations = currentOrder.product?.presentations;
+    const newPrice = cost * marginMultiplier;
 
-    if (presentations && presentations.length > 0) {
-      const maxFactor = Math.max(...presentations.map(p => p.stockFactor));
-      const costPerUnit = cost / maxFactor; 
+    setNewPresentationPrices(prev => ({
+      ...prev,
+      [presId]: newPrice.toFixed(2)
+    }));
+  };
 
-      const updatedPrices: Record<number, string> = {};
-      presentations.forEach(pres => {
-        const presCost = costPerUnit * pres.stockFactor;
-        const presPublicPrice = presCost * marginMultiplier;
-        updatedPrices[pres.id] = presPublicPrice.toFixed(2);
+  // Redondear todos los precios públicos hacia arriba (o al entero más cercano)
+  const roundPublicPrices = () => {
+    setNewPresentationPrices(prev => {
+      const rounded: Record<number, string> = {};
+      Object.keys(prev).forEach(key => {
+        const id = Number(key);
+        const val = parseFloat(prev[id]);
+        if (!isNaN(val)) {
+          rounded[id] = Math.ceil(val).toString(); // Utiliza Math.ceil para redondear siempre hacia arriba
+        } else {
+          rounded[id] = prev[id];
+        }
       });
-      setNewPresentationPrices(updatedPrices);
-    }
+      return rounded;
+    });
   };
 
   const handleConfirmPriceChanges = () => {
-    // calculatePrices();
     setIsEditingPrice(false); 
   };
 
@@ -126,7 +146,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     );
   };
 
-  // ================= ACCIONES A LA API =================
+// ================= ACCIONES A LA API =================
   const processReceipt = async (finalStatus: number) => {
     if (!currentOrder || isSubmitting) return;
 
@@ -143,31 +163,50 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
       movementNotes: movementNotes.trim() || undefined
     };
 
-    if (finalStatus === 3) {
-      if (currentOrder.product?.isInventoryTracked) {
+    if (finalStatus === 3 && currentOrder.product) {
+      if (currentOrder.product.isInventoryTracked) {
         payload.receivedQuantity = parseFloat(receivedQty);
       } else {
         payload.receivedQuantity = null;
       }
 
-      const oldSupplierPrice = currentOrder.product?.supplierPrice;
-      const oldMargin = currentOrder.product?.profitMargin;
-      const parsedNewCost = parseFloat(newSupplierPrice);
+      const oldMargin = currentOrder.product.profitMargin;
       const parsedNewMargin = parseFloat(newProfitMargin);
 
-      if (!isNaN(parsedNewCost) && parsedNewCost !== oldSupplierPrice) payload.newSupplierPrice = parsedNewCost;
-      if (!isNaN(parsedNewMargin) && parsedNewMargin !== oldMargin) payload.newProfitMargin = parsedNewMargin;
+      if (!isNaN(parsedNewMargin) && parsedNewMargin !== oldMargin) {
+        payload.newProfitMargin = parsedNewMargin;
+      }
 
-      const pPrices: any[] = [];
-      Object.entries(newPresentationPrices).forEach(([id, price]) => {
-        const parsedPrice = parseFloat(price);
-        const originalPres = currentOrder.product?.presentations?.find(p => p.id === Number(id));
-        if (!isNaN(parsedPrice) && originalPres && originalPres.price !== parsedPrice) {
-          pPrices.push({ presentationId: Number(id), newPrice: parsedPrice });
+      const presentationUpdates: any[] = [];
+      
+      currentOrder.product.presentations?.forEach(pres => {
+        const parsedCost = parseFloat(newSupplierPrices[pres.id]);
+        const parsedPrice = parseFloat(newPresentationPrices[pres.id]);
+        
+        // Verificamos qué valores cambiaron realmente
+        const costChanged = !isNaN(parsedCost) && parsedCost !== pres.supplierPrice;
+        const priceChanged = !isNaN(parsedPrice) && parsedPrice !== pres.price;
+        
+        // Si ALGUNO de los dos cambió, enviamos la actualización
+        if (costChanged || priceChanged) {
+          const updateObj: any = { 
+            presentationId: pres.id,
+            // IMPORTANTE: Como NewPrice no es nullable en C#, lo mandamos SIEMPRE
+            newPrice: !isNaN(parsedPrice) ? parsedPrice : pres.price
+          };
+          
+          if (costChanged) {
+            updateObj.newSupplierPrice = parsedCost;
+          }
+          
+          presentationUpdates.push(updateObj);
         }
       });
       
-      if (pPrices.length > 0) payload.presentationPrices = pPrices;
+      // Aseguramos que la llave se llama EXACTAMENTE igual que tu DTO en C#
+      if (presentationUpdates.length > 0) {
+        payload.presentationPrices = presentationUpdates; 
+      }
     }
 
     const response = await pendingOrderService.processMerchandiseReceipt(token, currentOrder.id, payload);
@@ -182,7 +221,6 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
     setIsSubmitting(false);
   };
 
-  // AQUÍ ESTABA EL ERROR: Se eliminó el límite de length - 1
   const advanceToNext = () => {
     if (currentIndex < ordersList.length) {
       setCurrentIndex(prev => prev + 1);
@@ -357,7 +395,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
                           <h3 className={`text-sm font-black uppercase tracking-widest ${isEditingPrice ? 'text-blue-400' : 'text-gray-400'}`}>Costos y Precios</h3>
                           {!isEditingPrice && (
-                            <button onClick={() => { setIsEditingPrice(true); setTimeout(() => supplierPriceInputRef.current?.focus(), 100); }} className="text-blue-400 text-xs font-bold bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-500/20 transition-colors">
+                            <button onClick={() => setIsEditingPrice(true)} className="text-blue-400 text-xs font-bold bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-500/20 transition-colors">
                               ✎ Actualizar
                             </button>
                           )}
@@ -365,61 +403,88 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
 
                         {!isEditingPrice ? (
                           <div className="flex flex-col flex-1 justify-center space-y-6">
-                            <div className="text-center">
-                              <span className="block text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Costo Proveedor</span>
-                              <span className="text-white font-black text-4xl">${newSupplierPrice ? parseFloat(newSupplierPrice).toFixed(2) : currentOrder.product.supplierPrice?.toFixed(2) || '0.00'}</span>
-                            </div>
-                            <div>
-                              <div className="flex justify-between items-center mb-3">
+                            <div className="flex justify-between items-center mb-1">
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Precios Público</span>
                                 <span className="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">Ganancia: {newProfitMargin ? parseFloat(newProfitMargin) : currentOrder.product.profitMargin}%</span>
-                              </div>
-                              <div className="space-y-2">
-                                {currentOrder.product.presentations?.map(pres => {
-                                  const displayPrice = newPresentationPrices[pres.id] ? parseFloat(newPresentationPrices[pres.id]) : pres.price;
-                                  return (
-                                    <div key={pres.id} className="bg-[#121212] p-3 rounded-lg border border-gray-800 flex justify-between items-center">
-                                      <span className="text-gray-400 font-bold text-xs">{pres.name}</span>
+                            </div>
+                            <div className="space-y-3">
+                              {currentOrder.product.presentations?.map(pres => {
+                                const displayPrice = newPresentationPrices[pres.id] ? parseFloat(newPresentationPrices[pres.id]) : pres.price;
+                                const displayCost = newSupplierPrices[pres.id] ? parseFloat(newSupplierPrices[pres.id]) : pres.supplierPrice;
+                                
+                                return (
+                                  <div key={pres.id} className="bg-[#121212] p-3 rounded-xl border border-gray-800 flex flex-col gap-1">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-300 font-bold text-xs uppercase">{pres.name}</span>
                                       <div className="flex items-center gap-2">
                                         {renderPriceChangeBadge(pres.price, displayPrice.toString())}
                                         <span className="text-white font-black text-lg">${displayPrice.toFixed(2)}</span>
                                       </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                    <div className="text-[10px] text-gray-500 font-bold">
+                                      Costo Proveedor: <span className="text-gray-400">${displayCost.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         ) : (
                           <div className="animate-in fade-in duration-200">
-                            <div className="flex gap-3 mb-4">
+                            
+                            <div className="flex gap-3 mb-4 items-end">
                               <div className="flex-1">
-                                <label className="block text-[10px] font-black text-blue-400 uppercase mb-1">Nuevo Costo ($)</label>
-                                <input ref={supplierPriceInputRef} type="number" step="0.01" value={newSupplierPrice} onChange={(e) => setNewSupplierPrice(e.target.value)} className="w-full bg-[#121212] border border-blue-500/50 text-white font-bold text-lg rounded-lg py-2 px-3 outline-none focus:border-blue-500" />
-                              </div>
-                              <div className="w-24">
-                                <label className="block text-[10px] font-black text-blue-400 uppercase mb-1">Margen (%)</label>
+                                <label className="block text-[10px] font-black text-blue-400 uppercase mb-1">Margen Global (%)</label>
                                 <input type="number" step="1" value={newProfitMargin} onChange={(e) => setNewProfitMargin(e.target.value)} className="w-full bg-[#121212] border border-blue-500/50 text-white font-bold text-lg rounded-lg py-2 px-3 outline-none focus:border-blue-500" />
                               </div>
+                              <button onClick={roundPublicPrices} className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 font-bold py-2.5 px-4 rounded-lg transition-colors text-xs border border-purple-500/30">
+                                ⭕ Redondear Precios
+                              </button>
                             </div>
-                            <button onClick={calculatePrices} className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 font-bold py-2 rounded-lg transition-colors text-xs border border-blue-500/30 mb-4">
-                              🖩 Recalcular Sugeridos
-                            </button>
 
-                            <div className="border-t border-gray-800 pt-4 space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                            <div className="border-t border-gray-800 pt-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
                               {currentOrder.product.presentations?.map(pres => (
-                                <div key={pres.id} className="bg-[#121212] p-2.5 rounded-lg border border-gray-800 flex items-center justify-between">
-                                  <div className="flex flex-col">
-                                    <span className="text-gray-400 font-bold text-[10px] leading-tight">{pres.name}</span>
+                                <div key={pres.id} className="bg-[#121212] p-3 rounded-xl border border-gray-800 flex flex-col gap-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-400 font-bold text-[11px] leading-tight uppercase">{pres.name}</span>
                                     {renderPriceChangeBadge(pres.price, newPresentationPrices[pres.id] || '')}
                                   </div>
-                                  <div className="w-28 relative">
-                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
-                                    <input type="number" step="0.01" value={newPresentationPrices[pres.id] || ''} onChange={(e) => setNewPresentationPrices({...newPresentationPrices, [pres.id]: e.target.value})} className="w-full bg-black/50 border border-gray-700 text-white font-bold text-sm rounded-md py-1 pl-6 pr-2 outline-none focus:border-blue-500" placeholder={pres.price.toString()} />
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 relative">
+                                      <label className="text-[9px] text-gray-500 font-black uppercase mb-1 block">Costo Prov.</label>
+                                      <span className="absolute left-2 top-[22px] text-gray-500 font-bold">$</span>
+                                      <input 
+                                        type="number" step="0.01" 
+                                        value={newSupplierPrices[pres.id] || ''} 
+                                        onChange={(e) => setNewSupplierPrices({...newSupplierPrices, [pres.id]: e.target.value})} 
+                                        className="w-full bg-black/50 border border-gray-700 text-white font-bold text-sm rounded-md py-1.5 pl-6 pr-2 outline-none focus:border-blue-500" 
+                                      />
+                                    </div>
+                                    
+                                    <button 
+                                      onClick={() => calculatePriceForPresentation(pres.id)} 
+                                      className="mt-[18px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 p-2 rounded-md transition-colors border border-blue-500/30"
+                                      title="Calcular Precio Público"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                    </button>
+                                    
+                                    <div className="flex-1 relative">
+                                      <label className="text-[9px] text-gray-500 font-black uppercase mb-1 block">Precio Púb.</label>
+                                      <span className="absolute left-2 top-[22px] text-gray-500 font-bold">$</span>
+                                      <input 
+                                        type="number" step="0.01" 
+                                        value={newPresentationPrices[pres.id] || ''} 
+                                        onChange={(e) => setNewPresentationPrices({...newPresentationPrices, [pres.id]: e.target.value})} 
+                                        className="w-full bg-black/50 border border-gray-700 text-white font-bold text-sm rounded-md py-1.5 pl-6 pr-2 outline-none focus:border-blue-500" 
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
+
                           </div>
                         )}
                       </div>
