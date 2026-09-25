@@ -1,8 +1,8 @@
 # Estructura de carpetas y sus funciones 
 
-pages/ Las pantallas principales de tu aplicación. Aquí organizarías el sistema en módulos mayores: PuntoDeVenta/, Inventario/, Reportes/.
+pages/ Las pantallas principales de la aplicación. Aquí organizarías el sistema en módulos mayores: PuntoDeVenta/, Inventario/, Reportes/. Estos archivos son compositores esa es su funcion principal 
 
-components/: Exclusivo para componentes visuales reutilizables que no manejan lógica de negocio compleja (ej. BotonCobrar, TablaProductos, ModalConfirmacion).
+components/: Exclusivo para componentes visuales reutilizables que no manejan lógica de negocio compleja (ej. BotonCobrar, TablaProductos, ModalConfirmacion). Pero aqui tambien viven los componentes de cada seccion con su respectiva carpeta (ejemplo src/pages/FinanceScreen.tsx -> src/componets/finance)
 
 services/ : Archivos dedicados a las peticiones HTTP hacia tu backend (fetch de catálogos, registro de tickets, actualización de stock).
 
@@ -14,15 +14,25 @@ hooks/: Custom hooks de React. Podrías tener cosas como useLectorBarras para ma
 
 utils/: Funciones auxiliares puras. Por ejemplo, una función para formatear números a moneda ($ 1,500.00) o calcular impuestos.
 
-src
+StatusAlert.tsx Es un componete de ayuda para mostrar mensajes de error o de confirmacion al usuario 
+CustomDatePicker.tsx Es el selector de fechas para los datmos date(se hace asi ya que el calendario por defecto traba la aplicacion)
+
+Arbol de carpetas:
+.
 ├── App.tsx
 ├── assets
 │   ├── Carrusel_1.jpg
 │   ├── Carrusel_2.jpg
+│   ├── imagen_3.jpg
 │   ├── imagen.jpg
 │   └── logo.png
 ├── components
+│   ├── CustomDatePicker.tsx
 │   ├── CustomTitleBar.tsx
+│   ├── expences
+│   ├── finance
+│   │   ├── FinanceChart.tsx
+│   │   └── FinanceSummaryCards.tsx
 │   ├── InputField.tsx
 │   ├── Inventario
 │   │   ├── InventoryKardexTable.tsx
@@ -54,6 +64,11 @@ src
 │   │   ├── PosSwitchConfirmModal.tsx
 │   │   ├── PosTabBar.tsx
 │   │   └── PosTabLimitModal.tsx
+│   ├── ProductHistory
+│   │   ├── GraphHistory.tsx
+│   │   ├── ProductGraphHome.tsx
+│   │   ├── ProductInformation.tsx
+│   │   └── SearchBarHistory.tsx
 │   ├── products
 │   │   ├── ProductCreateForm.tsx
 │   │   ├── ProductReactivateView.tsx
@@ -61,10 +76,22 @@ src
 │   │   ├── ProductStepPresentations.tsx
 │   │   ├── ProductStepSummary.tsx
 │   │   └── ProductTable.tsx
+│   ├── roleManagement
+│   │   ├── PanelRol.tsx
+│   │   ├── RoleConfirmModal.tsx
+│   │   ├── RoleDeleteModal.tsx
+│   │   ├── RoleListPanel.tsx
+│   │   ├── RolePermissionsPanel.tsx
+│   │   └── RolListUser.tsx
 │   ├── Sidebar.tsx
-│   └── suppliers
-│       ├── SupplierModal.tsx
-│       └── SupplierTable.tsx
+│   ├── StatusAlert.tsx
+│   ├── suppliers
+│   │   ├── SupplierModal.tsx
+│   │   └── SupplierTable.tsx
+│   └── userManagement
+│       ├── UserConfirmModal.tsx
+│       ├── UserFormPanel.tsx
+│       └── UserTable.tsx
 ├── context
 │   └── AuthContext.tsx
 ├── Documentacion
@@ -78,29 +105,42 @@ src
 │   └── MainLayout.tsx
 ├── main.tsx
 ├── pages
+│   ├── ExpensesScreen.tsx
 │   ├── FinanceScreen.tsx
 │   ├── HomeScreen.tsx
 │   ├── InventoryScreen.tsx
 │   ├── Login.tsx
 │   ├── PendingOrdersScreen.tsx
 │   ├── PosScreen.tsx
+│   ├── ProductHistoryScreen.tsx
 │   ├── ProductsScreen.tsx
+│   ├── RoleManagementScreen.tsx
 │   ├── SuppliersScreen.tsx
+│   ├── UserManagementScreen.tsx
 │   └── UserScreen.tsx
 ├── services
 │   ├── authService.ts
+│   ├── financeService.ts
 │   ├── inventoryService.ts
 │   ├── pendingOrderService.ts
 │   ├── productService.ts
+│   ├── reportService.ts
+│   ├── roleService.ts
 │   ├── saleService.ts
-│   └── supplierService.ts
+│   ├── supplierService.ts
+│   └── userService.ts
 ├── types
 │   ├── auth.ts
+│   ├── finance.ts
 │   ├── inventory.ts
 │   ├── pendingOrder.ts
 │   ├── pos.ts
 │   ├── product.ts
-│   └── supplier.ts
+│   ├── report.ts
+│   ├── rol.ts
+│   ├── supplier.ts
+│   └── user.ts
 ├── utils
+│   ├── authStore.ts
 │   └── fetchClient.ts
 └── vite-env.d.ts
