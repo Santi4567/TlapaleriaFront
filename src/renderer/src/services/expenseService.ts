@@ -1,5 +1,5 @@
 // src/services/expenseService.ts
-import { fetchClient } from '../utils/fetchClient';
+import { fetchWithAuth } from '../utils/fetchClient';
 import { 
   CreateExpenseDto, 
   CreateAccountPayableDto 
