@@ -1,7 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, safeStorage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import fs from 'node:fs/promises'
 
 function createWindow(): void {
   // Create the browser window.
@@ -21,6 +22,9 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  mainWindow.on('maximize', () => mainWindow.webContents.send('win:maximize-changed', true))
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('win:maximize-changed', false))
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -52,6 +56,40 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  const winFrom = (e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) =>
+  BrowserWindow.fromWebContents(e.sender)
+
+  ipcMain.on('win:minimize', (e) => winFrom(e)?.minimize())
+  ipcMain.on('win:toggle-maximize', (e) => {
+    const w = winFrom(e)
+    if (w) w.isMaximized() ? w.unmaximize() : w.maximize()
+  })
+  ipcMain.on('win:close', (e) => winFrom(e)?.close())
+  ipcMain.handle('win:is-maximized', (e) => winFrom(e)?.isMaximized() ?? false)
+
+  // Token seguro
+  const tokenFile = (): string => join(app.getPath('userData'), 'leo_refresh_token.bin')
+
+  ipcMain.handle('secure-token:save', async (_e, token: string) => {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('El sistema no soporta cifrado seguro (safeStorage).')
+    }
+    await fs.writeFile(tokenFile(), safeStorage.encryptString(token))
+  })
+
+  ipcMain.handle('secure-token:get', async () => {
+    try {
+      const data = await fs.readFile(tokenFile())
+      return safeStorage.decryptString(data)
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('secure-token:delete', async () => {
+    await fs.rm(tokenFile(), { force: true })
+  })
 
   createWindow()
 
