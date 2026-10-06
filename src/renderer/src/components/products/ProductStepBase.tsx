@@ -1,5 +1,5 @@
 // src/components/products/ProductStepBase.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { productService } from '../../services/productService';
 
@@ -17,6 +17,13 @@ const ProductStepBase: React.FC<ProductStepBaseProps> = ({
   onNext
 }) => {
   const { user } = useAuth();
+
+  // autoFocus sin scroll: el autoFocus normal hace que el navegador desplace el contenedor
+  // para mostrar el input mientras el paso todavía está fuera de pantalla (se ve como un tirón).
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    codeInputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [codeCheckResult, setCodeCheckResult] = useState<{
@@ -95,7 +102,7 @@ const ProductStepBase: React.FC<ProductStepBaseProps> = ({
           <label className="block text-gray-300 font-bold mb-2">Código Interno / SKU *</label>
           <div className="relative">
             <input 
-              type="text" autoFocus placeholder="Ej. CAB-12-R, CEM-01" 
+              type="text" ref={codeInputRef} placeholder="Ej. CAB-12-R, CEM-01" 
               value={baseProduct.internalCode}
               onChange={e => {
                 setBaseProduct({...baseProduct, internalCode: e.target.value});

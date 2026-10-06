@@ -1,0 +1,32 @@
+/* Un solo par de @keyframes para toda la app.
+   --slide-from / --slide-to controlan la dirección (100% o -100%). */
+@keyframes slide-in {
+  from { transform: translateX(var(--slide-from, 100%)); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+@keyframes slide-out {
+  from { transform: none; opacity: 1; }
+  to   { transform: translateX(var(--slide-to, -100%)); opacity: 0; }
+}
+
+/* Pasos del formulario (entra uno, sale el otro) */
+.slide-enter { animation: slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.slide-leave { animation: slide-out 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Paneles que entran y salen siempre por la derecha */
+.overlay-enter { --slide-from: 100%; animation: slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.overlay-leave { --slide-to: 100%;   animation: slide-out 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Oculta la barra de scroll mientras el panel se mueve y la muestra al terminar.
+   clip-path recorta el borde derecho sin cambiar el layout (no hay saltos). */
+[data-settled="false"] .form-scroller { clip-path: inset(0 20px 0 0); }
+
+/* La tabla de fondo no muestra su barra mientras haya un panel montado (abriendo, abierto o cerrando) */
+.overlay-host:has(> [data-settled]) > .overlay-bg { clip-path: inset(0 20px 0 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter, .slide-leave, .overlay-enter, .overlay-leave {
+    animation-duration: 1ms;
+  }
+}

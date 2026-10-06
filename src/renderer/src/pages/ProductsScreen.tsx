@@ -6,6 +6,7 @@ import { Product } from '../types/product';
 import ProductTable from '../components/products/ProductTable';
 import ProductCreateForm from '../components/products/ProductCreateForm';
 import ProductReactivateView from '../components/products/ProductReactivateView';
+import { SlideOverlay } from '../components/common/SlideTransition';
 
 const ProductsScreen: React.FC = () => {
   const { user } = useAuth();
@@ -66,7 +67,7 @@ const ProductsScreen: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, currentPage, isActiveFilter, user?.token]);
 
-  // FUNCIÓN PARA CERRAR Y FORZAR REFLOW EN TAURI
+  // CIERRA TODOS LOS PANELES Y LIMPIA SU ESTADO
   const handleCloseAllOverlays = () => {
     setIsFormOpen(false);
     setEditingProduct(null);
@@ -76,13 +77,9 @@ const ProductsScreen: React.FC = () => {
     setIsReactivateOpen(false);
     setReactivatingProduct(null);
 
-    // TRUCO TAURI: Forzar un evento de resize en la ventana para obligar al webview a repintar el DOM colapsado
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 50);
   };
 
-  // CAMBIO DE PESTAÑA CON REFRESCO FORZADO
+  // CAMBIO DE PESTAÑA
   const handleTabChange = (active: boolean) => {
     if (isActiveFilter === active && !isFormOpen && !isReactivateOpen) return;
     handleCloseAllOverlays();
@@ -169,7 +166,7 @@ const ProductsScreen: React.FC = () => {
         <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-50 pointer-events-auto">
           <div className="bg-[#1a1a1a]/95 backdrop-blur-md border border-green-500/50 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between p-4 shadow-[0_10px_25px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-3 text-green-500 flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 mr-3 text-green-500 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
               <span>{successMessage}</span>
@@ -186,11 +183,11 @@ const ProductsScreen: React.FC = () => {
       )}
 
       {/* CONTENEDOR MAESTRO */}
-      <div className="flex-1 relative w-full h-full overflow-hidden flex flex-col">
+      <div className="overlay-host flex-1 relative w-full h-full overflow-hidden flex flex-col">
         
-        {/* VISTA 1: CATÁLOGO Y TABLA (Siempre montada en el DOM, sin animaciones de escala/opacidad que rompan el reflow) */}
-        <div className={`w-full h-full flex flex-col flex-1 transition-all duration-200 ${(isFormOpen || isReactivateOpen) ? 'invisible opacity-0 pointer-events-none absolute' : 'visible opacity-100 relative'}`}>
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 flex-shrink-0 gap-4">
+        {/* VISTA 1: CATÁLOGO Y TABLA (Siempre visible de fondo para evitar parpadeos) */}
+        <div className={`overlay-bg w-full h-full flex flex-col flex-1 transition-[translate,opacity] duration-200 ease-out ${(isFormOpen || isReactivateOpen) ? 'pointer-events-none -translate-x-[6%] opacity-40' : 'relative'}`}>
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
             <div>
               <h2 className="text-4xl font-extrabold text-white tracking-tight">Catálogo de Productos</h2>
               <p className="text-brand-text-muted text-lg mt-1">Gestiona el inventario base y sus presentaciones.</p>
@@ -232,9 +229,7 @@ const ProductsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* EL TRUCO DEL KEY: Al pasar una clave única (key) basada en el filtro, obligamos al árbol de React a destruir y repintar la tabla desde cero en el motor del WebView */}
           <ProductTable 
-            key={isActiveFilter ? 'table-active' : 'table-inactive'}
             products={products}
             isLoading={isLoading}
             error={error}
@@ -250,44 +245,28 @@ const ProductsScreen: React.FC = () => {
 
         
         {/* VISTA 2: FORMULARIO MULTIUSO (CREAR / EDITAR) */}
-        {isFormOpen && (
-          <div 
-            style={{ animation: 'slideInFromRight 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
-            className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]"
-          >
-            <ProductCreateForm 
-              productToEdit={editingProduct}
-              onCancel={handleCloseAllOverlays}
-              onSave={handleSaveProduct}
-              onDeactivate={handleDeactivateProduct} 
-              isSubmitting={isSubmitting}
-              error={formError}
-            />
-          </div>
-        )}
+        <SlideOverlay open={isFormOpen} className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]">
+          <ProductCreateForm
+            productToEdit={editingProduct}
+            onCancel={handleCloseAllOverlays}
+            onSave={handleSaveProduct}
+            onDeactivate={handleDeactivateProduct}
+            isSubmitting={isSubmitting}
+            error={formError}
+          />
+        </SlideOverlay>
 
-        {/* VISTA 3: VISTA DE REACTIVACIÓN PARA PRODUCTOS INACTIVOS */}
-        {isReactivateOpen && (
-          <div 
-            style={{ animation: 'slideInFromRight 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }}
-            className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]"
-          >
-            <ProductReactivateView 
-              product={reactivatingProduct}
-              onClose={() => { handleCloseAllOverlays(); fetchProducts(searchTerm, isActiveFilter); }}
-              onReactivatedAndEdit={handleReactivatedAndEdit}
-            />
-          </div>
-        )}
+        {/* VISTA 3: REACTIVACIÓN DE PRODUCTOS INACTIVOS */}
+        <SlideOverlay open={isReactivateOpen} className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]">
+          <ProductReactivateView
+            product={reactivatingProduct}
+            onClose={() => { handleCloseAllOverlays(); fetchProducts(searchTerm, isActiveFilter); }}
+            onReactivatedAndEdit={handleReactivatedAndEdit}
+          />
+        </SlideOverlay>
 
       </div>
 
-      <style>{`
-        @keyframes slideInFromRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0%); opacity: 1; }
-        }
-      `}</style>
 
     </div>
   );

@@ -6,6 +6,7 @@ import { Supplier } from '../../types/supplier';
 import ProductStepBase from './ProductStepBase';
 import ProductStepPresentations from './ProductStepPresentations';
 import ProductStepSummary from './ProductStepSummary';
+import { SlideTransition } from '../common/SlideTransition';
 
 interface ProductCreateFormProps {
   productToEdit?: any | null; 
@@ -21,6 +22,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
   const isEditing = !!productToEdit; 
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -36,7 +38,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
   const initialBaseProduct = {
     id: null,
     internalCode: '',
-    originalInternalCode: '', // <-- NUEVO: Para saber cuál era su clave al empezar a editar
+    originalInternalCode: '', 
     barcode: '',
     name: '',
     description: '',
@@ -59,55 +61,55 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
   const [baseProduct, setBaseProduct] = useState<any>(initialBaseProduct);
   const [presentations, setPresentations] = useState<any[]>([]); 
 
-useEffect(() => {
-  if (productToEdit) {
-    let formattedDate = '';
-    if (productToEdit.nextExpirationDate) {
-      formattedDate = productToEdit.nextExpirationDate.split('T')[0];
+  useEffect(() => {
+    if (productToEdit) {
+      let formattedDate = '';
+      if (productToEdit.nextExpirationDate) {
+        formattedDate = productToEdit.nextExpirationDate.split('T')[0];
+      }
+
+      const basePres = productToEdit.presentations?.length > 0 ? productToEdit.presentations[0] : null;
+      const childPresentations = productToEdit.presentations?.length > 1 ? productToEdit.presentations.slice(1) : [];
+
+      setBaseProduct({
+        id: productToEdit.id,
+        internalCode: productToEdit.internalCode || '',
+        originalInternalCode: productToEdit.internalCode || '',
+        barcode: productToEdit.barcode || '',
+        name: productToEdit.name || '',
+        description: productToEdit.description || '',
+        brand: productToEdit.brand || '',
+        location: productToEdit.location || '',
+        supplierId: productToEdit.supplierId || 0,
+        supplierPrice: basePres ? basePres.supplierPrice : "", 
+        profitMargin: productToEdit.profitMargin || "",
+        baseSalePrice: basePres ? basePres.price : "",
+        baseStockFactor: basePres ? basePres.stockFactor : "1",
+        basePresentationId: basePres ? basePres.id : null,
+        unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
+        isInventoryTracked: productToEdit.isInventoryTracked,
+        allowFractions: productToEdit.allowFractions || false,
+        initialStock: productToEdit.currentStock || "",
+        hasExpiration: productToEdit.hasExpiration,
+        nextExpirationDate: formattedDate
+      });
+
+      setPresentations(childPresentations.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        barcode: p.barcode || '',
+        price: p.price,
+        supplierPrice: p.supplierPrice,
+        stockFactor: p.stockFactor
+      })));
+    } else {
+      setBaseProduct(initialBaseProduct);
+      setPresentations([]);
     }
-
-    const basePres = productToEdit.presentations?.length > 0 ? productToEdit.presentations[0] : null;
-    const childPresentations = productToEdit.presentations?.length > 1 ? productToEdit.presentations.slice(1) : [];
-
-    setBaseProduct({
-      id: productToEdit.id,
-      internalCode: productToEdit.internalCode || '',
-      originalInternalCode: productToEdit.internalCode || '',
-      barcode: productToEdit.barcode || '',
-      name: productToEdit.name || '',
-      description: productToEdit.description || '',
-      brand: productToEdit.brand || '',
-      location: productToEdit.location || '',
-      supplierId: productToEdit.supplierId || 0,
-      supplierPrice: basePres ? basePres.supplierPrice : "", // <-- CORREGIDO: viene de la presentación base
-      profitMargin: productToEdit.profitMargin || "",
-      baseSalePrice: basePres ? basePres.price : "",
-      baseStockFactor: basePres ? basePres.stockFactor : "1",
-      basePresentationId: basePres ? basePres.id : null,
-      unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
-      isInventoryTracked: productToEdit.isInventoryTracked,
-      allowFractions: productToEdit.allowFractions || false,
-      initialStock: productToEdit.currentStock || "",
-      hasExpiration: productToEdit.hasExpiration,
-      nextExpirationDate: formattedDate
-    });
-
-    setPresentations(childPresentations.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      barcode: p.barcode || '',
-      price: p.price,
-      supplierPrice: p.supplierPrice, // <-- CORREGIDO: faltaba esta línea
-      stockFactor: p.stockFactor
-    })));
-  } else {
-    setBaseProduct(initialBaseProduct);
-    setPresentations([]);
-  }
-  setStep(1);
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [productToEdit]);
+    setStep(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productToEdit]);
 
   useEffect(() => {
     const loadSuppliers = async () => {
@@ -136,6 +138,7 @@ useEffect(() => {
       showNotification("Por favor completa al menos el Código Interno y Nombre del producto.");
       return;
     }
+    setSlideDirection(1);
     setStep(2);
   };
 
@@ -210,7 +213,7 @@ useEffect(() => {
       )}
 
       {/* CABECERA DINÁMICA */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 border-b border-gray-800 pb-6 flex-shrink-0 gap-4 bg-[#161616] z-20">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 border-b border-gray-800 pb-6 shrink-0 gap-4 bg-[#161616] z-20">
         <div>
           <h2 className="text-3xl font-extrabold text-white">
             {isEditing ? 'Edición de Producto' : 'Alta de Nuevo Producto'}
@@ -222,7 +225,7 @@ useEffect(() => {
           </p>
         </div>
         
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center space-x-2 bg-black/50 p-2 rounded-2xl border border-gray-800">
             <span className={`px-4 py-2 rounded-xl font-bold transition-all text-sm ${step === 1 ? 'bg-brand-orange text-black shadow-lg scale-105' : 'text-gray-400 hover:text-white'}`}>1. Identificación</span>
             <span className="text-gray-600 font-bold">→</span>
@@ -243,44 +246,46 @@ useEffect(() => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 font-bold flex-shrink-0">
+        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 font-bold shrink-0">
           {error}
         </div>
       )}
 
-      <div ref={scrollContainerRef} className="flex-1 w-full overflow-y-auto custom-scrollbar pr-2 flex flex-col relative">
+      {/* CONTENEDOR DE FORMULARIOS */}
+      <div ref={scrollContainerRef} className="flex-1 w-full form-scroller overflow-y-auto overflow-x-hidden custom-scrollbar pr-2 flex flex-col relative">
         
-        {step === 1 && (
-          <div style={{ animation: 'fadeInSlide 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }} className="w-full flex-1 flex flex-col min-h-full">
+        <SlideTransition viewKey={step} direction={slideDirection}>
+          {step === 1 && (
             <ProductStepBase baseProduct={baseProduct} setBaseProduct={setBaseProduct} onCancel={onCancel} onNext={handleNextToStep2} />
-          </div>
-        )}
+          )}
 
-        {step === 2 && (
-          <div style={{ animation: 'fadeInSlide 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }} className="w-full flex-1 flex flex-col min-h-full">
-            <ProductStepPresentations baseProduct={baseProduct} setBaseProduct={setBaseProduct} suppliers={suppliers} isLoadingSuppliers={isLoadingSuppliers} presentations={presentations} setPresentations={setPresentations} onBackToBase={() => setStep(1)} onFinishToSummary={() => setStep(3)} showNotification={showNotification} />
-          </div>
-        )}
-
-        {step === 3 && (
-          <div style={{ animation: 'fadeInSlide 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards' }} className="w-full flex-1 flex flex-col min-h-full">
-            <ProductStepSummary 
-              baseProduct={baseProduct} presentations={presentations} supplierName={selectedSupplierName} 
-              onBackToEdit={() => setStep(2)} onConfirmSave={handleFinalSubmit} 
-              onDeactivate={onDeactivate} 
-              isSubmitting={isSubmitting} 
+          {step === 2 && (
+            <ProductStepPresentations
+              baseProduct={baseProduct}
+              setBaseProduct={setBaseProduct}
+              suppliers={suppliers}
+              isLoadingSuppliers={isLoadingSuppliers}
+              presentations={presentations}
+              setPresentations={setPresentations}
+              onBackToBase={() => { setSlideDirection(-1); setStep(1); }}
+              onFinishToSummary={() => { setSlideDirection(1); setStep(3); }}
+              showNotification={showNotification}
             />
-          </div>
-        )}
+          )}
+
+          {step === 3 && (
+            <ProductStepSummary
+              baseProduct={baseProduct} presentations={presentations} supplierName={selectedSupplierName}
+              onBackToEdit={() => { setSlideDirection(-1); setStep(2); }}
+              onConfirmSave={handleFinalSubmit}
+              onDeactivate={onDeactivate}
+              isSubmitting={isSubmitting}
+            />
+          )}
+        </SlideTransition>
 
       </div>
 
-      <style>{`
-        @keyframes fadeInSlide {
-          from { opacity: 0; transform: translateX(30px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
     </div>
   );
 };

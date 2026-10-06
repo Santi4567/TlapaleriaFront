@@ -1,5 +1,5 @@
 // src/components/Sidebar.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -10,28 +10,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   const { user, logout } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // FIX: cuando la ventana de Tauri se maximiza/restaura, el webview a veces
-  // no "clampea" el scrollTop del contenedor si este quedó desplazado hasta
-  // abajo. El ResizeObserver detecta el cambio de tamaño del propio div y
-  // corrige el scrollTop si ya se pasó del máximo permitido.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const fixStuckScroll = () => {
-      const maxScroll = el.scrollHeight - el.clientHeight;
-      if (el.scrollTop > maxScroll) {
-        el.scrollTop = Math.max(0, maxScroll);
-      }
-    };
-
-    const ro = new ResizeObserver(fixStuckScroll);
-    ro.observe(el);
-
-    return () => ro.disconnect();
-  }, []);
 
   const checkPermission = (categoria: string, permiso: string) => {
     const userPerms = (user as any)?.permisos;
@@ -75,12 +53,19 @@ const menuItems = [
       ) }
   ];
 
+  // Las etiquetas SIEMPRE se quedan en el flujo del layout (nunca 'absolute').
+  // Al colapsar se desvanecen rápido y el botón (overflow-hidden) las recorta mientras
+  // el ancho se encoge; al expandir esperan 100 ms a que haya espacio antes de aparecer.
+  const labelMotion = isExpanded
+    ? 'opacity-100 translate-x-0 duration-200 delay-100'
+    : 'opacity-0 -translate-x-2 duration-100';
+
   return (
 <aside 
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
       // AGREGAMOS: h-[calc(100vh-2rem)] para fijar la altura exacta a la pantalla menos los márgenes m-4
-      className={`bg-[#121212] m-4 h-[calc(96vh-2rem)] rounded-3xl shadow-2xl flex flex-col py-6 transition-[width] duration-300 ease-in-out relative z-40 border border-gray-800/50
+      className={`bg-[#121212] m-4 h-[calc(96vh-2rem)] rounded-3xl shadow-2xl flex flex-col py-6 transition-[width] duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] relative z-40 border border-gray-800/50
         ${isExpanded ? 'w-64' : 'w-20'}`}
     >
       {/* 1. SECCIÓN SUPERIOR CON SCROLL: 
@@ -89,7 +74,6 @@ const menuItems = [
           overflow-x-hidden (evita que el texto desborde al colapsar)
           Clases extra para ocultar la barra de scroll visualmente pero mantener la función */}
         <div
-          ref={scrollRef}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3"
         >        {menuItems.map((item) =>
           item.show && (
@@ -102,10 +86,10 @@ const menuItems = [
                   ? 'bg-brand-orange text-brand-deep-dark shadow-[0_0_15px_rgba(255,90,0,0.3)]' 
                   : 'text-brand-text-muted hover:text-white hover:bg-gray-800/80'}`}
             >
-              <div className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+              <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
                 {item.icon}
               </div>
-              <span className={`font-bold tracking-wide whitespace-nowrap transition-all duration-300 ml-4 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 absolute'}`}>
+              <span className={`font-bold tracking-wide whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
                 {item.label}
               </span>
             </button>
@@ -119,27 +103,27 @@ const menuItems = [
       <div className="px-3 border-t border-gray-800/50 pt-4 mt-2 shrink-0">
          <button 
             onClick={logout}
-            className="flex items-center p-3 w-full text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all group overflow-hidden mb-4"
+            className="flex items-center p-3 w-full text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-colors group overflow-hidden mb-4"
           >
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
             </div>
-            <span className={`font-bold whitespace-nowrap transition-all duration-300 ml-4 ${isExpanded ? 'opacity-100' : 'opacity-0 absolute'}`}>
+            <span className={`font-bold whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
               Cerrar Sesión
             </span>
          </button>
 
          <button 
             onClick={() => onNavigate('USER')}
-            className={`w-full flex items-center p-2 bg-black/40 rounded-2xl overflow-hidden border transition-all duration-200 group
+            className={`w-full flex items-center p-2 bg-black/40 rounded-2xl overflow-hidden border transition-colors duration-200 group
               ${currentView === 'USER' 
                 ? 'border-brand-orange bg-gray-800/80 shadow-[0_0_10px_rgba(255,90,0,0.1)]' 
                 : 'border-gray-800/50 hover:bg-gray-800/80 hover:border-gray-600'}`}
           >
-            <div className="flex-shrink-0 w-10 h-10 bg-gray-800 text-brand-orange font-bold rounded-xl flex items-center justify-center border border-gray-700 group-hover:scale-105 transition-transform">
+            <div className="shrink-0 w-10 h-10 bg-gray-800 text-brand-orange font-bold rounded-xl flex items-center justify-center border border-gray-700 group-hover:scale-105 transition-transform">
               {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
             </div>
-            <div className={`ml-3 whitespace-nowrap transition-all duration-300 flex flex-col items-start ${isExpanded ? 'opacity-100' : 'opacity-0 absolute'}`}>
+            <div className={`ml-3 whitespace-nowrap flex flex-col items-start transition-[opacity,translate] ${labelMotion}`}>
               <span className="text-sm font-bold truncate max-w-[140px] text-white group-hover:text-brand-orange transition-colors">{user?.name || 'Usuario'}</span>
               <span className="text-xs text-brand-text-muted">{user?.rol || 'Admin'}</span>
             </div>
