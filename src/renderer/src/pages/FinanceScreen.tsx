@@ -89,15 +89,15 @@ const FinanceScreen: React.FC = () => {
           <div className="flex items-center gap-3 px-2">
             <Calendar className="w-5 h-5 text-gray-400" />
             <CustomDatePicker 
-              value={startDate}
-              onChange={setStartDate}
+              selected={startDate ? new Date(startDate) : null} 
+              onChange={(date) => setStartDate(date ? date.toISOString().split('T')[0] : '')} 
             />
           </div>
           <span className="text-gray-600 font-bold">-</span>
           <div className="flex items-center gap-2 px-2">
             <CustomDatePicker 
-              value={endDate}
-              onChange={setEndDate}
+              selected={endDate ? new Date(endDate) : null} 
+              onChange={(date) => setEndDate(date ? date.toISOString().split('T')[0] : '')} 
             />
           </div>
         </div>

@@ -307,7 +307,7 @@ const ReceiveMerchandiseModal: React.FC<ReceiveMerchandiseModalProps> = ({ isOpe
                   const display = getDisplayData(order);
                   const status = localStatuses[order.id]; 
                   
-                  let statusBadge = null;
+                  let statusBadge: React.ReactNode = null;
                   if (status === 3) statusBadge = <span className="text-[9px] bg-green-500/20 text-green-400 px-2 py-1 rounded-md font-black flex items-center gap-1"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> RECIBIDO</span>;
                   if (status === 0) statusBadge = <span className="text-[9px] bg-orange-500/20 text-orange-400 px-2 py-1 rounded-md font-black flex items-center gap-1">FALTÓ</span>;
                   if (status === 2) statusBadge = <span className="text-[9px] bg-red-500/20 text-red-400 px-2 py-1 rounded-md font-black flex items-center gap-1">CANCELADO</span>;

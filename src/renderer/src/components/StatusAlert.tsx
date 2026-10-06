@@ -5,6 +5,7 @@ interface StatusAlertProps {
   success: boolean;
   message: string;
   onClose: () => void;
+  type?: 'success' | 'error' | string;
 }
 
 const StatusAlert: React.FC<StatusAlertProps> = ({ success, message, onClose }) => {

@@ -81,7 +81,8 @@ const AccountPayableCreateModal: React.FC<AccountPayableCreateModalProps> = ({ i
         payload.paymentFrequencyDays = parseInt(paymentFrequencyDays);
       }
 
-      const response = await expenseService.createAccountPayable(payload);
+      const res = await expenseService.createAccountPayable(payload);
+      const response = await res.json();
 
       if (response.success) {
         setAlert({ type: 'success', message: 'Deuda registrada correctamente' });
@@ -119,7 +120,11 @@ const AccountPayableCreateModal: React.FC<AccountPayableCreateModalProps> = ({ i
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
-          {alert && <div className="mb-4"><StatusAlert type={alert.type} message={alert.message} /></div>}
+          {alert && <div className="mb-4"><StatusAlert 
+          success={alert.type === 'success'} 
+          message={alert.message} 
+          onClose={() => setAlert(null)} 
+        /></div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             
@@ -190,11 +195,7 @@ const AccountPayableCreateModal: React.FC<AccountPayableCreateModalProps> = ({ i
                 <div className="grid grid-cols-2 gap-4 bg-[#252525] p-4 rounded-lg border border-gray-700 animate-fade-in">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Fecha Límite *</label>
-                    <CustomDatePicker 
-                      selected={dueDate} 
-                      onChange={setDueDate} 
-                      placeholder="Seleccionar..." 
-                    />
+                    <CustomDatePicker selected={dueDate} onChange={setDueDate} placeholder="Seleccionar..." />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Frecuencia (Días) *</label>

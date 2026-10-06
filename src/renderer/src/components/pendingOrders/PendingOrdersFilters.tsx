@@ -125,15 +125,15 @@ const PendingOrdersFilters: React.FC<PendingOrdersFiltersProps> = ({ suppliersLi
             {/* Aquí reemplazamos los inputs de texto por el nuevo componente */}
             <div className="flex gap-2 items-center">
               <CustomDatePicker 
-                value={localStartDate}
-                onChange={setLocalStartDate}
+                selected={localStartDate ? new Date(localStartDate) : null} 
+                onChange={(date) => setLocalStartDate(date ? date.toISOString().split('T')[0] : '')} 
               />
               {dateMode === 'range' && (
                 <>
                   <span className="text-gray-600 font-bold">a</span>
                   <CustomDatePicker 
-                    value={localEndDate}
-                    onChange={setLocalEndDate}
+                    selected={localEndDate ? new Date(localEndDate) : null} 
+                    onChange={(date) => setLocalEndDate(date ? date.toISOString().split('T')[0] : '')} 
                   />
                 </>
               )}

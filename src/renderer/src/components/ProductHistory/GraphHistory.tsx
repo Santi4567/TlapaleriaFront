@@ -158,9 +158,16 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
 
       <div className="flex flex-wrap gap-4 items-end justify-between mb-6 pb-6 border-b border-gray-800 shrink-0">
         <div className="flex flex-wrap gap-3 items-end">
-          <CustomDatePicker label="Fecha Inicio" value={startDate} onChange={setStartDate} />
-          <CustomDatePicker label="Fecha Fin" value={endDate} onChange={setEndDate} />
-          
+          <CustomDatePicker 
+            label="Fecha Inicio" 
+            selected={startDate ? new Date(startDate) : null} 
+            onChange={(date) => setStartDate(date ? date.toISOString().split('T')[0] : '')} 
+          />
+          <CustomDatePicker 
+            label="Fecha Fin" 
+            selected={endDate ? new Date(endDate) : null} 
+            onChange={(date) => setEndDate(date ? date.toISOString().split('T')[0] : '')} 
+          />
           <button 
             onClick={() => fetchGraphData()}
             className="bg-gray-800 hover:bg-gray-700 text-white font-bold px-4 py-2 rounded-lg transition-colors border border-gray-600 h-[38px] ml-1"

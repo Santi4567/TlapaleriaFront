@@ -1,9 +1,12 @@
 {
   "name": "tlapaleria-leo",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Punto de venta y control de inventario",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": {
+  "name": "Antozac Flores Paredes",
+  "email": "santiantozac456@gmail.com"
+  },
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
@@ -38,7 +41,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^44.5.1",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.5",
@@ -49,5 +52,31 @@
     "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
+  },
+  "build": {
+    "appId": "com.tlapalerialeo.pos",
+    "productName": "Tlapaleria LEO",
+    "directories": {
+      "output": "dist_installers"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": ["deb", "rpm"],
+      "icon": "build/icon.png",
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }

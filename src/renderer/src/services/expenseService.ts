@@ -18,14 +18,18 @@ export const expenseService = {
   getExpenses: async (params?: Record<string, any>) => {
     const query = params ? new URLSearchParams(params).toString() : '';
     const url = query ? `/api/Expenses?${query}` : '/api/Expenses';
-    return fetchClient.get(url);
+    return fetchWithAuth(url);
   },
 
   /**
    * Registra una salida de dinero (pago de contado o abono a deuda).
    */
   createExpense: async (data: CreateExpenseDto) => {
-    return fetchClient.post('/api/Expenses', data);
+    return fetchWithAuth('/api/Expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
   },
 
   /**
@@ -33,7 +37,11 @@ export const expenseService = {
    * Restaura el balance de la cuenta por pagar si estaba ligado a una.
    */
   cancelExpense: async (id: number) => {
-    return fetchClient.put(`/api/Expenses/${id}/cancel`, {});
+    return fetchWithAuth(`/api/Expenses/${id}/cancel`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
   },
 
 
@@ -48,14 +56,14 @@ export const expenseService = {
   getAccountsPayable: async (params?: Record<string, any>) => {
     const query = params ? new URLSearchParams(params).toString() : '';
     const url = query ? `/api/Expenses/accounts-payable?${query}` : '/api/Expenses/accounts-payable';
-    return fetchClient.get(url);
+    return fetchWithAuth(url);
   },
 
   /**
    * Obtiene el detalle de una deuda específica, incluyendo su plan de plazos (PaymentSchedules).
    */
   getAccountPayableById: async (id: number) => {
-    return fetchClient.get(`/api/Expenses/accounts-payable/${id}`);
+    return fetchWithAuth(`/api/Expenses/accounts-payable/${id}`);
   },
 
   /**
@@ -63,7 +71,11 @@ export const expenseService = {
    * Si incluye dueDate y paymentFrequencyDays, genera cuotas automáticamente.
    */
   createAccountPayable: async (data: CreateAccountPayableDto) => {
-    return fetchClient.post('/api/Expenses/accounts-payable', data);
+    return fetchWithAuth('/api/Expenses/accounts-payable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
   },
 
 
@@ -75,7 +87,7 @@ export const expenseService = {
    * Obtiene el catálogo de categorías (por defecto, solo las activas).
    */
   getCategories: async (isActive: boolean = true) => {
-    return fetchClient.get(`/api/Expenses/categories?isActive=${isActive}`);
+    return fetchWithAuth(`/api/Expenses/categories?isActive=${isActive}`);
   },
 
   /**
@@ -85,7 +97,7 @@ export const expenseService = {
   getSchedules: async (params?: Record<string, any>) => {
     const query = params ? new URLSearchParams(params).toString() : '';
     const url = query ? `/api/Expenses/schedules?${query}` : '/api/Expenses/schedules';
-    return fetchClient.get(url);
+    return fetchWithAuth(url);
   },
 
   /**
@@ -93,7 +105,7 @@ export const expenseService = {
    * próximos a vencer (o ya vencidos).
    */
   getPendingReminders: async () => {
-    return fetchClient.get('/api/Expenses/reminders/pending');
+    return fetchWithAuth('/api/Expenses/reminders/pending');
   },
 
   /**
@@ -102,6 +114,10 @@ export const expenseService = {
    * Deberás crear la ruta equivalente en tu ExpensesController.cs
    */
   markReminderAsRead: async (id: number) => {
-    return fetchClient.put(`/api/Expenses/reminders/${id}/read`, {});
+    return fetchWithAuth(`/api/Expenses/reminders/${id}/read`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
   }
 };

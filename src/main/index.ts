@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import fs from 'node:fs/promises'
 
+app.commandLine.appendSwitch('ignore-certificate-errors');
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({

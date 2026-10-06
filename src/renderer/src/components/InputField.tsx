@@ -2,7 +2,7 @@
 import React, { InputHTMLAttributes } from 'react';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  label?: string;
   error?: string[]; // La API devuelve arrays de strings para errores de campo
 }
 

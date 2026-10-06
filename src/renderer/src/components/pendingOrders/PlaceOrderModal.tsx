@@ -230,7 +230,7 @@ const PlaceOrderModal: React.FC<PlaceOrderModalProps> = ({ isOpen, supplierId, o
                   const display = getDisplayData(order);
                   const status = localStatuses[order.id] || 0; 
                   
-                  let statusBadge = null;
+                  let statusBadge: React.ReactNode = null;
                   if (status === 1) statusBadge = <span className="text-[9px] bg-[#a855f7]/20 text-[#a855f7] px-2 py-1 rounded-md font-black flex items-center gap-1"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> PEDIDO</span>;
                   if (status === 2) statusBadge = <span className="text-[9px] bg-red-500/20 text-red-400 px-2 py-1 rounded-md font-black flex items-center gap-1"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg> CANCELADO</span>;
 

@@ -30,7 +30,8 @@ const ExpenseCreateModal: React.FC<ExpenseCreateModalProps> = ({ isOpen, onClose
     if (isOpen) {
       const fetchCategories = async () => {
         try {
-          const response = await expenseService.getCategories();
+          const res = await expenseService.getCategories();
+          const response = await res.json();
           if (response.success) {
             setCategories(response.data);
           }
@@ -74,8 +75,9 @@ const ExpenseCreateModal: React.FC<ExpenseCreateModalProps> = ({ isOpen, onClose
         // ya que este formulario es para egresos directos, no para abonos a deudas.
       };
 
-      const response = await expenseService.createExpense(payload);
-
+      const res = await expenseService.createExpense(payload);
+      const response = await res.json();
+      
       if (response.success) {
         setAlert({ type: 'success', message: 'Egreso registrado correctamente' });
         
@@ -123,7 +125,11 @@ const ExpenseCreateModal: React.FC<ExpenseCreateModalProps> = ({ isOpen, onClose
           {alert && (
             <div className="mb-4">
                {/* Asumiendo la estructura de props de tu StatusAlert */}
-              <StatusAlert type={alert.type} message={alert.message} />
+              <StatusAlert 
+                success={alert.type === 'success'} 
+                message={alert.message} 
+                onClose={() => setAlert(null)} 
+              />
             </div>
           )}
 

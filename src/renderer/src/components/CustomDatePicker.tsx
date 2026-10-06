@@ -2,24 +2,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface Props {
-  label?: string; // Ahora es opcional
-  value: string; // Formato YYYY-MM-DD o cadena vacía ''
-  onChange: (date: string) => void;
+  label?: string;
+  selected?: Date | null;
+  onChange: (date: Date | null) => void;
   placeholder?: string;
 }
 
-const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder = "DD/MM/AAAA" }) => {
+const CustomDatePicker: React.FC<Props> = ({ label, selected, onChange, placeholder = "DD/MM/AAAA" }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Si está vacío, usamos la fecha de hoy como referencia para el calendario
-  const parseDate = (str: string) => {
-    if (!str) return new Date(); 
-    const [y, m, d] = str.split('-');
-    return new Date(Number(y), Number(m) - 1, Number(d));
-  };
-
-  const [currentViewDate, setCurrentViewDate] = useState(() => parseDate(value));
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Si no hay fecha seleccionada, mostramos el mes actual
+  const [currentViewDate, setCurrentViewDate] = useState(() => selected || new Date());
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,9 +25,10 @@ const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Mantener sincronizada la vista si el selected cambia desde afuera
   useEffect(() => {
-    setCurrentViewDate(parseDate(value));
-  }, [value]);
+    if (selected) setCurrentViewDate(selected);
+  }, [selected]);
 
   const year = currentViewDate.getFullYear();
   const month = currentViewDate.getMonth();
@@ -44,10 +39,8 @@ const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder
   const handleNextMonth = () => setCurrentViewDate(new Date(year, month + 1, 1));
 
   const handleSelectDay = (day: number) => {
-    const y = year;
-    const m = String(month + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    onChange(`${y}-${m}-${d}`);
+    const newDate = new Date(year, month, day);
+    onChange(newDate);
     setIsOpen(false);
   };
 
@@ -60,6 +53,11 @@ const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder
   const emptyDays = Array.from({ length: firstDayOfMonth }, (_, i) => i);
   const monthDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+  // Helper para saber si un día en el loop es hoy o es el seleccionado
+  const isDateEqual = (d1: Date, y: number, m: number, d: number) => 
+    d1.getFullYear() === y && d1.getMonth() === m && d1.getDate() === d;
+  const today = new Date();
+
   return (
     <div className="relative" ref={popoverRef}>
       {label && (
@@ -69,12 +67,12 @@ const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder
       )}
       
       <button
-        type="button" // Previene que envíe formularios accidentalmente
+        type="button" 
         onClick={() => setIsOpen(!isOpen)}
-        className={`bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 w-[150px] h-[38px] flex items-center justify-between hover:border-brand-orange focus:border-brand-orange focus:outline-none transition-colors ${!value ? 'text-gray-500' : 'text-white'}`}
+        className={`bg-[#1c1c1c] border border-gray-800 rounded-lg px-4 py-2 w-[150px] h-[38px] flex items-center justify-between hover:border-brand-orange focus:border-brand-orange focus:outline-none transition-colors ${!selected ? 'text-gray-500' : 'text-white'}`}
       >
         <span className="font-mono text-sm">
-          {value ? value.split('-').reverse().join('/') : placeholder}
+          {selected ? selected.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) : placeholder}
         </span>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 shrink-0">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
@@ -98,9 +96,8 @@ const CustomDatePicker: React.FC<Props> = ({ label, value, onChange, placeholder
           <div className="grid grid-cols-7 gap-1">
             {emptyDays.map(i => <div key={`empty-${i}`} />)}
             {monthDays.map(day => {
-              const currentDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isSelected = currentDateStr === value;
-              const isToday = currentDateStr === new Date().toISOString().split('T')[0];
+              const isSelected = selected ? isDateEqual(selected, year, month, day) : false;
+              const isToday = isDateEqual(today, year, month, day);
 
               return (
                 <button
