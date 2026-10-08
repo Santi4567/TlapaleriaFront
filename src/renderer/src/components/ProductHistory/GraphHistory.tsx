@@ -1,7 +1,6 @@
 // src/components/ProductHistory/GraphHistory.tsx
 import React, { useState, useEffect } from 'react';
 import { Product, ProductPresentation } from '../../types/product';
-// NUEVO: Importamos ReferenceLine de recharts
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import CustomDatePicker from '../CustomDatePicker';
 import StatusAlert from '../StatusAlert';
@@ -52,7 +51,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
 
     if (response && response.success) {
       const formattedData = response.data.history.map(record => {
-        // NUEVO: Extraemos el campo 'actual' que manda el backend
         const dataPoint: any = { 
           date: record.date.split('T')[0],
           isActual: record.actual 
@@ -116,7 +114,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
     if (firstCost > 0) costVariation = ((lastCost - firstCost) / firstCost) * 100;
   }
 
-  // NUEVO: Buscamos qué fecha corresponde al punto 'actual' para dibujar la línea
   const actualPoint = chartData.find(d => d.isActual);
   const actualDate = actualPoint ? actualPoint.date : null;
 
@@ -143,7 +140,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
   const handleClearDates = () => {
     setStartDate('');
     setEndDate('');
-    // Al mandar '', tu API devolverá el rango por defecto de los 12 meses
     fetchGraphData('', '');
   };
 
@@ -248,8 +244,7 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
             </p>
           </div>
         ) : (
-          <div className="w-full flex-1 overflow-x-auto custom-scrollbar pb-2">
-            <div style={{ minWidth: Math.max(100, chartData.length * 80) + 'px', height: '100%' }}>
+          <div className="w-full flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
@@ -264,7 +259,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                       const isActualNode = payload && payload.length > 0 && payload[0].payload.isActual;
                       return isActualNode ? `${label} — PRECIO VIGENTE` : label;
                     }}
-                    // CAMBIO AQUÍ: (value: any, name: any)
                     formatter={(value: any, name: any) => {
                       let displayName = String(name);
                       if (displayName.startsWith('price_')) displayName = 'Precio Público (Otra pres.)';
@@ -275,7 +269,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                     }}
                   />
                   
-                  {/* Aquí se genera la leyenda */}
                   <Legend wrapperStyle={{ paddingTop: '20px' }}/>
 
                   {actualDate && (
@@ -295,7 +288,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                     />
                   )}
 
-                  {/* Líneas de fondo (Todas Juntas) - Mantenemos legendType="none" para que no ensucien la leyenda principal */}
                   {viewMode === 'junto' && product.presentations
                     .filter(p => p.id !== presentation.id)
                     .map(p => (
@@ -306,7 +298,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                     ))
                   }
 
-                  {/* LÍNEAS PRINCIPALES: Aquí cambiamos el "name" para corregir la leyenda */}
                   <Line 
                     type="monotone" 
                     name="Precio Público" 
@@ -327,7 +318,6 @@ const GraphHistory: React.FC<Props> = ({ product, presentation }) => {
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
           </div>
         )}
       </div>

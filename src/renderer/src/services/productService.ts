@@ -273,5 +273,27 @@ export const productService = {
       console.error(`Error al verificar el código interno "${code}":`, error);
       return null;
     }
+  },
+  // 10. SUGERENCIAS DE NOMBRES DE PRODUCTO (Autocompletado)
+  async getNameSuggestions(token: string, query: string): Promise<ApiResponse<string[]> | null> {
+    try {
+      const encodedQuery = encodeURIComponent(query);
+      const response = await fetchWithAuth(`${API_URL}/name-suggestions?q=${encodedQuery}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/plain',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error al obtener sugerencias de nombres:', error);
+      return null;
+    }
   }
 };
