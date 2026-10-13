@@ -1,6 +1,6 @@
 {
   "name": "tlapaleria-leo",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "description": "Punto de venta y control de inventario",
   "main": "./out/main/index.js",
   "author": {
@@ -8,7 +8,7 @@
   "email": "santiantozac456@gmail.com"
   },
   "homepage": "https://electron-vite.org",
-  "scripts": {
+ "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -19,9 +19,9 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
-    "build:mac": "electron-vite build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:win": "electron-vite build && electron-builder --win --publish never",
+    "build:mac": "electron-vite build && electron-builder --mac --publish never",
+    "build:linux": "electron-vite build && electron-builder --linux --publish never"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
