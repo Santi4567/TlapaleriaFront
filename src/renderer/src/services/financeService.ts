@@ -1,5 +1,5 @@
 // src/services/financeService.ts
-import { FinancialReportResponse } from '../types/finance';
+import { FinancialReportPeriod, FinancialReportResponse } from '../types/finance';
 import { fetchWithAuth } from '../utils/fetchClient';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/reports/financial`;
@@ -8,12 +8,14 @@ export const financeService = {
   async getFinancialReport(
     token: string, 
     startDate?: string, 
-    endDate?: string
+    endDate?: string,
+    periodType: FinancialReportPeriod = FinancialReportPeriod.CustomRange
   ): Promise<FinancialReportResponse | null> {
     try {
       let url = API_URL;
       const params = new URLSearchParams();
 
+      params.append('periodType', periodType.toString());
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 

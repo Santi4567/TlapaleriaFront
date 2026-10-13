@@ -3,13 +3,17 @@ import React from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
-import { FinancialChartItem } from '../../types/finance';
+import { FinancialChartItem, FinancialReportPeriod } from '../../types/finance';
 
 interface FinanceChartProps {
   data: FinancialChartItem[];
+  periodType?: FinancialReportPeriod;
 }
 
-const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
+const FinanceChart: React.FC<FinanceChartProps> = ({ 
+  data, 
+  periodType = FinancialReportPeriod.CustomRange 
+}) => {
   if (!data || data.length === 0) {
     return (
       <div className="h-80 w-full flex items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl">
@@ -18,13 +22,27 @@ const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
     );
   }
 
+  // Título dinámico según el botón seleccionado
+  const getChartTitle = () => {
+    switch (periodType) {
+      case FinancialReportPeriod.Day:
+        return 'Comportamiento por Hora (Ventas vs Ganancia Real)';
+      case FinancialReportPeriod.Month:
+        return 'Comportamiento Semanal del Mes (Ventas vs Ganancia Real)';
+      case FinancialReportPeriod.Year:
+        return 'Comportamiento Mensual del Año (Ventas vs Ganancia Real)';
+      default:
+        return 'Comportamiento Diario (Ventas vs Ganancia Real)';
+    }
+  };
+
   // Formateador para el Tooltip y ejes
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
 
   return (
     <div className="w-full h-[420px] bg-[#1a1a1a]/80 backdrop-blur-md border border-gray-800 rounded-2xl p-6 shadow-lg">
-      <h3 className="text-white font-bold text-lg mb-6">Comportamiento Diario (Ventas vs Ganancia Real)</h3>
+      <h3 className="text-white font-bold text-lg mb-6">{getChartTitle()}</h3>
       <div className="w-full h-[310px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -62,7 +80,7 @@ const FinanceChart: React.FC<FinanceChartProps> = ({ data }) => {
                 formatCurrency(Number(value) || 0), 
                 name === 'netAmount' ? 'Venta Neta' : 'Ganancia Real'
               ]}
-              labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
+              labelStyle={{ color: '#9ca3af', marginBottom: '4px', fontWeight: 600 }}
             />
             <Legend 
               verticalAlign="top" 
