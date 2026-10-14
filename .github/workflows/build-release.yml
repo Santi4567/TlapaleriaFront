@@ -12,7 +12,8 @@ permissions:
   contents: write
 
 env:
-  VITE_API_URL: "https://TlapaleriaLeo.local/api" 
+  VITE_API_URL: "https://TlapaleriaLeo.local/api"
+  RENDERER_VITE_API_URL: "https://TlapaleriaLeo.local/api"
 
 jobs:
   build_pos:

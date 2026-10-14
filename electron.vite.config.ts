@@ -7,6 +7,7 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
+    envPrefix: ['VITE_', 'RENDERER_VITE_'], // <-- Permite usar VITE_API_URL en el frontend
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')
