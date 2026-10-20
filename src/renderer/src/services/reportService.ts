@@ -1,6 +1,10 @@
 // src/services/reportService.ts
 import { ApiResponse } from '../types/product';
-import { ProductPriceHistory } from '../types/report';
+import { 
+  ProductPriceHistory, 
+  SupplierReportPeriod, 
+  SupplierSalesReportResponse 
+} from '../types/report';
 import { fetchWithAuth } from '../utils/fetchClient';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/Reports`;
@@ -16,7 +20,6 @@ export const reportService = {
     try {
       const params = new URLSearchParams();
       
-      // Adjuntar parámetros condicionales
       if (presentationId) params.append('presentationId', presentationId.toString());
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
@@ -39,6 +42,41 @@ export const reportService = {
       return await response.json();
     } catch (error) {
       console.error('Error al obtener el historial de precios:', error);
+      return null;
+    }
+  },
+
+  // --- Obtener corte/ventas por proveedor ---
+  async getSupplierSalesReport(
+    token: string,
+    periodType: SupplierReportPeriod = SupplierReportPeriod.AllTime,
+    startDate?: string,
+    endDate?: string
+  ): Promise<ApiResponse<SupplierSalesReportResponse> | null> {
+    try {
+      const params = new URLSearchParams();
+      params.append('periodType', periodType.toString());
+
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const url = `${API_URL}/suppliers-sales?${params.toString()}`;
+
+      const response = await fetchWithAuth(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error al obtener el reporte de ventas por proveedor:', error);
       return null;
     }
   }
