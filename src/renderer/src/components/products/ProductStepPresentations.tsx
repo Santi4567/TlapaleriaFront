@@ -1,7 +1,8 @@
 // src/components/products/ProductStepPresentations.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreatePresentationRequest } from '../../types/product';
 import { Supplier } from '../../types/supplier';
+import CustomDatePicker from '../CustomDatePicker';
 
 interface ProductStepPresentationsProps {
   baseProduct: any;
@@ -40,8 +41,147 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
   const [hasCustomBarcode, setHasCustomBarcode] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
-  // Constante para saber si estamos en modo edición
   const isEditing = !!baseProduct.id;
+
+  // --- ESTADOS PARA BUSCADOR RÁPIDO DE PROVEEDOR (POR ID O FLECHAS) ---
+  const [supplierQuery, setSupplierQuery] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [activeSupplierIndex, setActiveSupplierIndex] = useState(0);
+
+  // Sincronizar el texto del input cuando cambia el supplierId externo
+  useEffect(() => {
+    const currentSup = suppliers.find(s => s.id === Number(baseProduct.supplierId));
+    if (currentSup && !showSupplierDropdown) {
+      setSupplierQuery(`#${currentSup.id} - ${currentSup.name}`);
+    }
+  }, [baseProduct.supplierId, suppliers, showSupplierDropdown]);
+
+  const filteredSuppliers = suppliers.filter(sup => {
+    const q = supplierQuery.trim().toLowerCase().replace(/^#/, '');
+    if (!q) return true;
+    return (
+      sup.id.toString().includes(q) ||
+      sup.name.toLowerCase().includes(q) ||
+      (sup.contactName && sup.contactName.toLowerCase().includes(q))
+    );
+  });
+
+  const handleSupplierInputChange = (val: string) => {
+    setSupplierQuery(val);
+    setShowSupplierDropdown(true);
+    setActiveSupplierIndex(0);
+
+    // Si escribe un número puro que coincide con un ID, lo selecciona automáticamente al instante
+    const cleanNum = val.trim().replace(/^#/, '');
+    if (/^\d+$/.test(cleanNum)) {
+      const exactMatch = suppliers.find(s => s.id === Number(cleanNum));
+      if (exactMatch) {
+        setBaseProduct((prev: any) => ({ ...prev, supplierId: exactMatch.id }));
+      }
+    }
+  };
+
+  const handleSelectSupplier = (sup: Supplier) => {
+    setBaseProduct((prev: any) => ({ ...prev, supplierId: sup.id }));
+    setSupplierQuery(`#${sup.id} - ${sup.name}`);
+    setShowSupplierDropdown(false);
+  };
+
+  const handleSupplierKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSupplierDropdown) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        setShowSupplierDropdown(true);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSupplierIndex(prev => (prev < filteredSuppliers.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSupplierIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredSuppliers[activeSupplierIndex]) {
+        handleSelectSupplier(filteredSuppliers[activeSupplierIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSupplierDropdown(false);
+    }
+  };
+
+  // --- CÁLCULO AUTOMÁTICO BIDIRECCIONAL DE PRECIOS Y GANANCIA ---
+  const handleSalePriceChange = (val: string) => {
+    if (val === "") {
+      setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: "", profitMargin: "" }));
+      return;
+    }
+    const salePrice = parseFloat(val);
+    if (isNaN(salePrice)) return;
+
+    setBaseProduct((prev: any) => {
+      const cost = parseFloat(prev.supplierPrice);
+      let newMargin = prev.profitMargin;
+      if (!isNaN(cost) && cost > 0) {
+        newMargin = Number((((salePrice / cost) - 1) * 100).toFixed(2));
+      }
+      return {
+        ...prev,
+        baseSalePrice: salePrice,
+        profitMargin: newMargin
+      };
+    });
+  };
+
+  const handleSupplierPriceChange = (val: string) => {
+    if (val === "") {
+      setBaseProduct((prev: any) => ({ ...prev, supplierPrice: "" }));
+      return;
+    }
+    const cost = parseFloat(val);
+    if (isNaN(cost)) return;
+
+    setBaseProduct((prev: any) => {
+      const salePrice = parseFloat(prev.baseSalePrice);
+      const margin = parseFloat(prev.profitMargin);
+
+      // Si ya escribió Precio Público, recalculamos el % de Ganancia automáticamente
+      if (!isNaN(salePrice) && salePrice > 0 && cost > 0) {
+        const newMargin = Number((((salePrice / cost) - 1) * 100).toFixed(2));
+        return { ...prev, supplierPrice: cost, profitMargin: newMargin };
+      }
+      // Si no hay Precio Público pero sí puso Ganancia antes, calculamos el Precio Público
+      if ((prev.baseSalePrice === "" || salePrice === 0) && !isNaN(margin) && cost > 0) {
+        const newSale = Number((cost * (1 + margin / 100)).toFixed(2));
+        return { ...prev, supplierPrice: cost, baseSalePrice: newSale };
+      }
+
+      return { ...prev, supplierPrice: cost };
+    });
+  };
+
+  const handleProfitMarginChange = (val: string) => {
+    if (val === "") {
+      setBaseProduct((prev: any) => ({ ...prev, profitMargin: "" }));
+      return;
+    }
+    const margin = parseFloat(val);
+    if (isNaN(margin)) return;
+
+    setBaseProduct((prev: any) => {
+      const cost = parseFloat(prev.supplierPrice);
+      let newSale = prev.baseSalePrice;
+      if (!isNaN(cost) && cost > 0) {
+        newSale = Math.round(cost * (1 + margin / 100));
+      }
+      return {
+        ...prev,
+        profitMargin: margin,
+        baseSalePrice: newSale
+      };
+    });
+  };
 
   const handleNumberChange = (field: string, value: string, isFloat: boolean = false, isBase: boolean = false) => {
     const targetSet = isBase ? setBaseProduct : setCurrentPres;
@@ -55,89 +195,63 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     }
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, ''); 
-    if (val.length > 4) val = val.slice(0, 4) + '-' + val.slice(4);
-    if (val.length > 7) val = val.slice(0, 7) + '-' + val.slice(7);
-    if (val.length > 10) val = val.slice(0, 10);
-    setBaseProduct((prev: any) => ({ ...prev, nextExpirationDate: val }));
+  // --- CONVERSIÓN DE FECHA PARA CUSTOMDATEPICKER (SIN DESFASE DE ZONA HORARIA) ---
+  const parseStringToDate = (dateStr: string): Date | null => {
+    if (!dateStr || dateStr.length !== 10) return null;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   };
 
-  const handleCalculatePrice = () => {
-    const costo = Number(baseProduct.supplierPrice || 0);
-    
-    if (costo <= 0) {
-      showNotification("Por favor ingresa primero un Precio de Compra mayor a 0 para calcular.");
+  const handleCustomDateSelect = (date: Date | null) => {
+    if (!date) {
+      setBaseProduct((prev: any) => ({ ...prev, nextExpirationDate: '' }));
       return;
     }
-
-    const hasMargen = baseProduct.profitMargin !== "" && baseProduct.profitMargin !== null;
-    const hasPrecio = baseProduct.baseSalePrice !== "" && baseProduct.baseSalePrice !== null;
-
-    if (hasMargen && hasPrecio) {
-      // Caso 1: Los tres campos están llenos (Costo, Margen y Precio). 
-      // Se usa la primera opción: calcular y sobreescribir el Precio de Venta.
-      const margen = Number(baseProduct.profitMargin);
-      const calculado = costo * (1 + (margen / 100));
-      setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: Math.round(calculado) }));
-      
-    } else if (!hasMargen && hasPrecio) {
-      // Caso 2: Tienes Costo y Precio, pero falta el Margen. Calculamos el porcentaje de ganancia.
-      const precio = Number(baseProduct.baseSalePrice);
-      const margenCalculado = ((precio / costo) - 1) * 100;
-      setBaseProduct((prev: any) => ({ ...prev, profitMargin: Math.round(margenCalculado) }));
-      
-    } else if (hasMargen && !hasPrecio) {
-      // Caso 3: Tienes Costo y Margen, pero falta el Precio. Se calcula el Precio de Venta normal.
-      const margen = Number(baseProduct.profitMargin);
-      const calculado = costo * (1 + (margen / 100));
-      setBaseProduct((prev: any) => ({ ...prev, baseSalePrice: Math.round(calculado) }));
-      
-    } else {
-      // Si el usuario da clic pero ambos campos (margen y precio) están vacíos.
-      showNotification("Por favor ingresa un Margen o un Precio Venta al Público para calcular.");
-    }
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    setBaseProduct((prev: any) => ({ ...prev, nextExpirationDate: `${yyyy}-${mm}-${dd}` }));
   };
 
   const handleSavePresentation = (e: React.MouseEvent) => {
-  e.preventDefault();
-  const finalCode = hasCustomCode && currentPres.code.trim() !== '' ? currentPres.code.trim() : baseProduct.internalCode;
-  const finalBarcode = hasCustomBarcode && currentPres.barcode.trim() !== '' ? currentPres.barcode.trim() : baseProduct.barcode;
+    e.preventDefault();
+    const finalCode = hasCustomCode && currentPres.code.trim() !== '' ? currentPres.code.trim() : baseProduct.internalCode;
+    const finalBarcode = hasCustomBarcode && currentPres.barcode.trim() !== '' ? currentPres.barcode.trim() : baseProduct.barcode;
 
-  if (!currentPres.name.trim() || !finalCode || Number(currentPres.price) <= 0) {
-    showNotification("Llena el Nombre, asegúrate de tener un Código y un Precio mayor a 0.");
-    return;
-  }
+    if (!currentPres.name.trim() || !finalCode || Number(currentPres.price) <= 0) {
+      showNotification("Llena el Nombre, asegúrate de tener un Código y un Precio mayor a 0.");
+      return;
+    }
 
-  // --- NUEVO: validación de costo ---
-  if (currentPres.supplierPrice === "" || Number(currentPres.supplierPrice) < 0) {
-    showNotification("El Costo de Proveedor de esta variante no puede estar vacío ni ser negativo.");
-    return;
-  }
+    if (currentPres.supplierPrice === "" || Number(currentPres.supplierPrice) < 0) {
+      showNotification("El Costo de Proveedor de esta variante no puede estar vacío ni ser negativo.");
+      return;
+    }
 
-  const updatedPres = { 
-    ...currentPres, 
-    code: finalCode,
-    barcode: finalBarcode || "",
-    price: Number(currentPres.price),
-    supplierPrice: Number(currentPres.supplierPrice), // <-- NUEVO
-    stockFactor: Number(currentPres.stockFactor || 1)
+    const updatedPres = { 
+      ...currentPres, 
+      code: finalCode,
+      barcode: finalBarcode || "",
+      price: Number(currentPres.price),
+      supplierPrice: Number(currentPres.supplierPrice),
+      stockFactor: Number(currentPres.stockFactor || 1)
+    };
+
+    if (editingIndex !== null) {
+      const newList = [...presentations];
+      newList[editingIndex] = updatedPres;
+      setPresentations(newList);
+      setEditingIndex(null);
+    } else {
+      setPresentations([...presentations, updatedPres]);
+    }
+
+    setCurrentPres({ name: '', code: '', barcode: '', price: "", supplierPrice: "", stockFactor: 1 });
+    setHasCustomCode(false);
+    setHasCustomBarcode(false);
+    setIsVariantFormOpen(false); 
   };
-
-  if (editingIndex !== null) {
-    const newList = [...presentations];
-    newList[editingIndex] = updatedPres;
-    setPresentations(newList);
-    setEditingIndex(null);
-  } else {
-    setPresentations([...presentations, updatedPres]);
-  }
-
-  setCurrentPres({ name: '', code: '', barcode: '', price: "", supplierPrice: "", stockFactor: 1 });
-  setHasCustomCode(false);
-  setHasCustomBarcode(false);
-  setIsVariantFormOpen(false); 
-};
 
   const handleEditPresentation = (idx: number) => {
     const item = presentations[idx];
@@ -194,199 +308,289 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
   return (
     <div className="flex flex-col xl:flex-row gap-8 pb-16">
       
-      {/* COLUMNA IZQUIERDA: FORMULARIOS (flex-1) */}
-      <div className="flex-1 space-y-10">
+      {/* COLUMNA IZQUIERDA: FORMULARIOS */}
+      <div className="flex-1 space-y-8">
         
-        {/* SECCIÓN 1: COSTOS Y PRECIO BASE */}
+        {/* SECCIÓN 1: PROVEEDOR, UNIDAD BASE, FACTOR Y PRECIOS AUTOMÁTICOS */}
         <div id="seccion-base" className="p-6 bg-[#121212] rounded-2xl border border-gray-800 space-y-6">
           <h3 className="text-xl font-bold text-white border-b border-gray-800 pb-3">
-            1. Costos y Precio de Venta (Padre)
+            1. Costos, Unidad Base y Precio de Venta (Padre)
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
-              <label className="block text-brand-orange font-bold mb-2">Proveedor Principal *</label>
+          {/* FILA SUPERIOR: PROVEEDOR (CON BÚSQUEDA POR ID / FLECHAS) + UNIDAD DE MEDIDA + FACTOR BASE */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            
+            {/* SELECTOR DE PROVEEDOR RÁPIDO */}
+            <div className="md:col-span-2 relative">
+              <label className="block text-brand-orange font-bold mb-2">
+                Proveedor Principal (Escribe ID o Nombre) *
+              </label>
               {isLoadingSuppliers ? (
-                <p className="text-gray-500 py-3">Cargando...</p>
+                <p className="text-gray-500 py-3">Cargando proveedores...</p>
               ) : (
-                <select 
-                  style={{ colorScheme: 'dark' }}
-                  value={baseProduct.supplierId}
-                  onChange={e => setBaseProduct({...baseProduct, supplierId: Number(e.target.value)})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-xl px-3 py-3 focus:border-brand-orange focus:outline-none font-bold"
-                >
-                  <option value={0}>Selecciona uno...</option>
-                  {suppliers.map(sup => (
-                    <option key={sup.id} value={sup.id} className="bg-[#1a1a1a] text-white py-2">
-                      {sup.name} ({sup.contactName})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ej. 1, Truper, IUSA..."
+                    value={supplierQuery}
+                    onFocus={() => {
+                      setSupplierQuery('');
+                      setShowSupplierDropdown(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowSupplierDropdown(false);
+                        const currentSup = suppliers.find(s => s.id === Number(baseProduct.supplierId));
+                        if (currentSup) {
+                          setSupplierQuery(`#${currentSup.id} - ${currentSup.name}`);
+                        }
+                      }, 200);
+                    }}
+                    onChange={e => handleSupplierInputChange(e.target.value)}
+                    onKeyDown={handleSupplierKeyDown}
+                    className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-xl pl-4 pr-10 py-3 focus:border-brand-orange focus:outline-none font-bold"
+                  />
+                  <span className="absolute right-3 top-3.5 text-gray-400 pointer-events-none">▼</span>
+
+                  {showSupplierDropdown && (
+                    <ul className="absolute z-50 w-full bg-[#1a1a1a] border border-gray-700 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto custom-scrollbar">
+                      {filteredSuppliers.length === 0 ? (
+                        <li className="px-4 py-3 text-gray-500 text-sm">No se encontraron proveedores</li>
+                      ) : (
+                        filteredSuppliers.map((sup, idx) => (
+                          <li
+                            key={sup.id}
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => handleSelectSupplier(sup)}
+                            className={`px-4 py-2.5 cursor-pointer flex items-center justify-between text-sm font-bold transition-colors border-b border-gray-800/60 last:border-0 ${
+                              idx === activeSupplierIndex
+                                ? 'bg-brand-orange text-black'
+                                : 'text-white hover:bg-brand-orange/20'
+                            }`}
+                          >
+                            <span>
+                              <span className={`font-mono mr-2 px-1.5 py-0.5 rounded text-xs ${idx === activeSupplierIndex ? 'bg-black/20 text-black' : 'bg-black/50 text-brand-orange'}`}>
+                                ID: {sup.id}
+                              </span>
+                              {sup.name}
+                            </span>
+                            {sup.contactName && (
+                              <span className={`text-xs ${idx === activeSupplierIndex ? 'text-black/80' : 'text-gray-400'}`}>
+                                ({sup.contactName})
+                              </span>
+                            )}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
+
+            {/* UNIDAD DE MEDIDA (FUERA DEL CUADRO DE STOCK) */}
             <div>
-              <label className="block text-gray-300 font-bold mb-2">Precio de Compra ($) *</label>
+              <label className="block text-gray-300 font-bold mb-2">Unidad de Medida *</label>
               <input 
-                type="number" step="0.01" placeholder="Costo al mayorista"
-                value={baseProduct.supplierPrice === "" ? "" : baseProduct.supplierPrice}
-                onChange={e => handleNumberChange("supplierPrice", e.target.value, true, true)}
-                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-xl px-3 py-3 focus:border-brand-orange focus:outline-none font-mono font-bold"
+                type="text" 
+                placeholder="PZA, KG, MTS..." 
+                value={baseProduct.unitOfMeasure}
+                onChange={e => setBaseProduct({...baseProduct, unitOfMeasure: e.target.value.toUpperCase()})}
+                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-xl px-4 py-3 focus:border-brand-orange focus:outline-none font-bold uppercase"
               />
             </div>
+
+            {/* FACTOR DE STOCK (FUERA DEL CUADRO DE STOCK) */}
             <div>
-              <label className="block text-gray-300 font-bold mb-2">Margen Sugerido (%)</label>
-              <div className="flex space-x-2">
-                <input 
-                  type="number" step="1" placeholder="Ej. 30"
-                  value={baseProduct.profitMargin === "" ? "" : baseProduct.profitMargin}
-                  onChange={e => handleNumberChange("profitMargin", e.target.value, false, true)}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-xl px-3 py-3 focus:border-brand-orange focus:outline-none font-mono font-bold"
-                />
-                <button
-                  type="button" onClick={handleCalculatePrice} title="Calcular Precio"
-                  className="px-4 py-3 bg-brand-orange/20 hover:bg-brand-orange text-brand-orange hover:text-black rounded-xl border border-brand-orange/50 transition-all"
-                >
-                  ⚡
-                </button>
-              </div>
+              <label className="block text-gray-300 font-bold mb-2">Factor de Stock</label>
+              <input 
+                type="number" 
+                step="any" 
+                value={baseProduct.baseStockFactor === "" ? "" : baseProduct.baseStockFactor}
+                onChange={e => handleNumberChange("baseStockFactor", e.target.value, true, true)}
+                className="w-full bg-[#1a1a1a] border border-gray-700 text-brand-orange text-base rounded-xl px-4 py-3 focus:border-brand-orange focus:outline-none font-mono font-bold"
+              />
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-800">
-            <label className="block text-brand-orange font-extrabold text-lg mb-2 text-center">
-              PRECIO VENTA AL PÚBLICO ($) *
-            </label>
-            <input 
-              type="number" step="1" placeholder="0.00"
-              value={baseProduct.baseSalePrice === "" ? "" : baseProduct.baseSalePrice}
-              onChange={e => handleNumberChange("baseSalePrice", e.target.value, true, true)}
-              className="w-full max-w-sm mx-auto block bg-[#0a0a0a] border-2 border-brand-orange text-brand-orange text-4xl rounded-2xl px-6 py-5 focus:outline-none font-mono font-black text-center shadow-[0_0_15px_rgba(255,90,0,0.2)]"
-            />
-            <p className="text-center text-sm text-gray-500 mt-2">Precio de salida para la presentación principal en mostrador.</p>
+          {/* FILA INFERIOR: NUEVO ORDEN (1. PRECIO PÚBLICO, 2. PRECIO PROVEEDOR, 3. GANANCIA %) */}
+          <div className="pt-4 border-t border-gray-800 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            
+            {/* 1. PRECIO VENTA AL PÚBLICO */}
+            <div>
+              <label className="block text-brand-orange font-extrabold text-sm mb-2 uppercase tracking-wide">
+                1. Precio Venta al Público ($) *
+              </label>
+              <input 
+                type="number" 
+                step="any" 
+                placeholder="0.00"
+                value={baseProduct.baseSalePrice === "" ? "" : baseProduct.baseSalePrice}
+                onChange={e => handleSalePriceChange(e.target.value)}
+                className="w-full bg-[#0a0a0a] border-2 border-brand-orange text-brand-orange text-2xl rounded-xl px-4 py-3 focus:outline-none font-mono font-black shadow-[0_0_15px_rgba(255,90,0,0.15)]"
+              />
+            </div>
+
+            {/* 2. PRECIO PROVEEDOR */}
+            <div>
+              <label className="block text-gray-300 font-bold text-sm mb-2 uppercase tracking-wide">
+                2. Precio Proveedor ($) *
+              </label>
+              <input 
+                type="number" 
+                step="any" 
+                placeholder="Costo de compra"
+                value={baseProduct.supplierPrice === "" ? "" : baseProduct.supplierPrice}
+                onChange={e => handleSupplierPriceChange(e.target.value)}
+                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-xl rounded-xl px-4 py-3.5 focus:border-brand-orange focus:outline-none font-mono font-bold"
+              />
+            </div>
+
+            {/* 3. GANANCIA (%) AUTOMÁTICA */}
+            <div>
+              <label className="block text-gray-300 font-bold text-sm mb-2 uppercase tracking-wide">
+                3. Ganancia (%)
+              </label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="any" 
+                  placeholder="Ej. 30"
+                  value={baseProduct.profitMargin === "" ? "" : baseProduct.profitMargin}
+                  onChange={e => handleProfitMarginChange(e.target.value)}
+                  className="w-full bg-[#1a1a1a] border border-gray-700 text-green-400 text-xl rounded-xl pl-4 pr-10 py-3.5 focus:border-brand-orange focus:outline-none font-mono font-bold"
+                />
+                <span className="absolute right-4 top-4 text-gray-400 font-bold font-mono">%</span>
+              </div>
+            </div>
+
           </div>
+          <p className="text-xs text-gray-500">
+            ⚡ Cálculo automático activo: Escribe el costo de proveedor y el precio público (o el porcentaje de ganancia) y el otro campo se calculará al instante.
+          </p>
         </div>
 
-        {/* SECCIÓN 2: INVENTARIO, CADUCIDAD Y FRACCIONES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* SECCIÓN 2: SELECTORES APILADOS UNO ENCIMA DEL OTRO (ACORDEÓN EXPANDIBLE) */}
+        <div className="space-y-4">
           
-          {/* CARD 1: CONTROL DE STOCK */}
-          <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
+          {/* SELECTOR 1: CONTROL DE STOCK */}
+          <div className={`p-5 bg-[#121212] rounded-2xl border transition-all duration-200 ${baseProduct.isInventoryTracked ? 'border-brand-orange/60 shadow-lg' : 'border-gray-800'}`}>
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setBaseProduct({...baseProduct, isInventoryTracked: !baseProduct.isInventoryTracked})}
+            >
               <div>
                 <h4 className="text-white font-bold text-lg">¿Control de Stock?</h4>
-                <p className="text-xs text-gray-400">Si se apaga, será N/S</p>
+                <p className="text-xs text-gray-400">
+                  {baseProduct.isInventoryTracked ? 'Habilitado: Se llevará conteo de existencias en almacén.' : 'Apagado (N/S): No se descontará inventario al vender.'}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setBaseProduct({...baseProduct, isInventoryTracked: !baseProduct.isInventoryTracked})}
                 className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${baseProduct.isInventoryTracked ? 'bg-brand-orange' : 'bg-gray-700'}`}
               >
                 <span className={`inline-block h-6 w-6 transform rounded-full bg-black transition-transform ${baseProduct.isInventoryTracked ? 'translate-x-9' : 'translate-x-1'}`} />
               </button>
             </div>
 
-            <div className="flex space-x-2">
-              <div className="w-1/3">
-                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">Unidad Base</label>
-                <input 
-                  type="text" placeholder="KG, PZA..." value={baseProduct.unitOfMeasure}
-                  onChange={e => setBaseProduct({...baseProduct, unitOfMeasure: e.target.value.toUpperCase()})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-2 py-2 font-bold uppercase text-sm"
-                />
+            {baseProduct.isInventoryTracked && (
+              <div className="mt-4 pt-4 border-t border-gray-800 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="w-full sm:w-64">
+                  <label className="block text-xs text-gray-400 font-bold mb-1.5 uppercase">
+                    {isEditing ? 'Stock Actual en Sistema' : 'Stock Inicial de Apertura'}
+                  </label>
+                  <input 
+                    type="number" 
+                    step="any" 
+                    placeholder="Ej. 50"
+                    disabled={isEditing}
+                    value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
+                    onChange={e => {
+                      if (!isEditing) {
+                        handleNumberChange("initialStock", e.target.value, true, true);
+                      }
+                    }}
+                    className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl px-4 py-2.5 font-mono font-bold text-base focus:border-brand-orange focus:outline-none ${isEditing ? 'opacity-40 cursor-not-allowed bg-black/50' : ''}`}
+                  />
+                </div>
+                {isEditing && (
+                  <p className="text-xs text-gray-500 italic mt-4">
+                    * El inventario actual sólo se modifica desde el módulo de Entradas / Salidas.
+                  </p>
+                )}
               </div>
-              
-              {/* === PROTECCIÓN DE STOCK EN MODO EDICIÓN === */}
-              <div className="w-1/3">
-                <label className="block text-[10px] text-gray-400 font-bold mb-1 uppercase">
-                  {isEditing ? 'Stock Actual' : 'Stock Ini.'}
-                </label>
-                <input 
-                  type="number" step="any" 
-                  disabled={isEditing || !baseProduct.isInventoryTracked}
-                  value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
-                  onChange={e => {
-                    // Evita que se altere el estado de initialStock si estamos editando
-                    if (!isEditing) {
-                      handleNumberChange("initialStock", e.target.value, true, true);
-                    }
-                  }}
-                  className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-2 py-2 font-mono font-bold text-sm ${(isEditing || !baseProduct.isInventoryTracked) ? 'opacity-30 cursor-not-allowed bg-black/50' : ''}`}
-                  title={isEditing ? "El inventario se modifica desde el módulo de Entradas/Salidas" : ""}
-                />
-              </div>
-              {/* ========================================= */}
-
-              <div className="w-1/3">
-                <label className="block text-[10px] text-brand-orange font-bold mb-1 uppercase">Factor</label>
-                <input 
-                  type="number" step="any" 
-                  value={baseProduct.baseStockFactor === "" ? "" : baseProduct.baseStockFactor}
-                  onChange={e => handleNumberChange("baseStockFactor", e.target.value, true, true)}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 text-brand-orange rounded-lg px-2 py-2 font-mono font-bold text-sm"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* CARD 2: CADUCIDAD */}
-          <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
+          {/* SELECTOR 2: TIENE CADUCIDAD (CON CUSTOMDATEPICKER) */}
+          <div className={`p-5 bg-[#121212] rounded-2xl border transition-all duration-200 ${baseProduct.hasExpiration ? 'border-brand-orange/60 shadow-lg' : 'border-gray-800'}`}>
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setBaseProduct({...baseProduct, hasExpiration: !baseProduct.hasExpiration})}
+            >
               <div>
                 <h4 className="text-white font-bold text-lg">¿Tiene Caducidad?</h4>
-                <p className="text-xs text-gray-400">Pinturas o cementos</p>
+                <p className="text-xs text-gray-400">Para productos perecederos como pinturas, solventes, pegamentos o cementos.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setBaseProduct({...baseProduct, hasExpiration: !baseProduct.hasExpiration})}
                 className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${baseProduct.hasExpiration ? 'bg-brand-orange' : 'bg-gray-700'}`}
               >
                 <span className={`inline-block h-6 w-6 transform rounded-full bg-black transition-transform ${baseProduct.hasExpiration ? 'translate-x-9' : 'translate-x-1'}`} />
               </button>
             </div>
 
-            <div>
-              <label className="block text-xs text-gray-400 font-bold mb-1">Fecha de Vencimiento</label>
-              <input 
-                type="text" 
-                placeholder="AAAA-MM-DD"
-                disabled={!baseProduct.hasExpiration}
-                value={baseProduct.nextExpirationDate}
-                onChange={handleDateChange}
-                maxLength={10}
-                className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-lg px-3 py-2 font-mono tracking-widest text-sm ${!baseProduct.hasExpiration ? 'opacity-30 cursor-not-allowed' : ''}`}
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Año-Mes-Día (Ej. 2027-12-31)</p>
-            </div>
+            {baseProduct.hasExpiration && (
+              <div className="mt-4 pt-4 border-t border-gray-800 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div>
+                  <CustomDatePicker
+                    label="Fecha de Vencimiento *"
+                    selected={parseStringToDate(baseProduct.nextExpirationDate)}
+                    onChange={handleCustomDateSelect}
+                    placeholder="DD/MM/AAAA"
+                  />
+                </div>
+                {baseProduct.nextExpirationDate && (
+                  <div className="sm:mt-5 text-xs font-mono text-brand-orange bg-brand-orange/10 border border-brand-orange/30 px-3 py-2 rounded-lg">
+                    Formato BD: <strong>{baseProduct.nextExpirationDate}</strong>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* CARD 3: PERMITIR FRACCIONES (NUEVO) */}
-          <div className="p-6 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
+          {/* SELECTOR 3: PERMITE FRACCIONES */}
+          <div className={`p-5 bg-[#121212] rounded-2xl border transition-all duration-200 ${baseProduct.allowFractions ? 'border-brand-orange/60 shadow-lg' : 'border-gray-800'}`}>
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setBaseProduct({...baseProduct, allowFractions: !baseProduct.allowFractions})}
+            >
               <div>
-                <h4 className="text-white font-bold text-lg">¿Permite Fracciones?</h4>
-                <p className="text-xs text-gray-400">Ventas con decimales</p>
+                <h4 className="text-white font-bold text-lg">¿Es Fraccionable? (Permite decimales)</h4>
+                <p className="text-xs text-gray-400">Habilita ventas con punto decimal en mostrador (ej. 0.5 metros, 1.25 kg).</p>
               </div>
               <button
                 type="button"
-                onClick={() => setBaseProduct({...baseProduct, allowFractions: !baseProduct.allowFractions})}
                 className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${baseProduct.allowFractions ? 'bg-brand-orange' : 'bg-gray-700'}`}
               >
                 <span className={`inline-block h-6 w-6 transform rounded-full bg-black transition-transform ${baseProduct.allowFractions ? 'translate-x-9' : 'translate-x-1'}`} />
               </button>
             </div>
 
-            <div className="bg-black/30 p-3 rounded-lg border border-gray-800/80">
-              <p className="text-[11px] text-gray-400 leading-snug">
-                {baseProduct.allowFractions
-                  ? '⚡ Habilitado: Ideal para productos por volumen o peso como Cables (0.5m) o Clavos (1.25kg).'
-                  : '🔒 Deshabilitado: Para artículos de venta únicamente en números enteros como Piezas o Bultos.'}
-              </p>
-            </div>
+            {baseProduct.allowFractions && (
+              <div className="mt-4 pt-4 border-t border-gray-800 animate-in slide-in-from-top-2 fade-in duration-200">
+                <div className="bg-brand-orange/10 p-3 rounded-xl border border-brand-orange/30">
+                  <p className="text-xs text-brand-orange font-bold leading-snug">
+                    ⚡ Venta fraccionada activa: El cajero podrá ingresar cantidades decimales como 0.5, 0.25 o 1.50 al vender este artículo.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
 
-        {/* SECCIÓN 3: CAPTURA DE VARIANTES (HIJOS) OCULTA / EXPANDIBLE */}
+        {/* SECCIÓN 3: CAPTURA DE VARIANTES (HIJOS) */}
         <div id="seccion-variantes" className="p-6 bg-[#121212] rounded-2xl border border-gray-800 space-y-6">
           <div className="border-b border-gray-800 pb-3 flex justify-between items-center">
             <div>
@@ -400,7 +604,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
               type="button" 
               onClick={() => {
                 setEditingIndex(null);
-                setCurrentPres({ name: '', code: '', barcode: '', price: "", stockFactor: 1 });
+                setCurrentPres({ name: '', code: '', barcode: '', price: "", supplierPrice: "", stockFactor: 1 });
                 setIsVariantFormOpen(true);
               }}
               className="w-full py-6 border-2 border-dashed border-gray-700 hover:border-brand-orange text-gray-400 hover:text-brand-orange font-bold rounded-2xl transition-all flex items-center justify-center text-lg"
@@ -471,7 +675,6 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
                 </div>
               </div>
 
-              {/* --- NUEVO: indicador de margen en vivo, justo lo que hubiera detectado el error del cable --- */}
               {Number(currentPres.price) > 0 && currentPres.supplierPrice !== "" && (
                 (() => {
                   const precio = Number(currentPres.price);

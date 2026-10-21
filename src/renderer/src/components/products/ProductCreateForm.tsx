@@ -51,7 +51,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
     baseStockFactor: "1",
     basePresentationId: null, 
     unitOfMeasure: 'PZA',
-    isInventoryTracked: true,
+    isInventoryTracked: false,
     allowFractions: false,
     initialStock: "",
     hasExpiration: false,
