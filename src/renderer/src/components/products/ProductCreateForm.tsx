@@ -41,6 +41,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
     originalInternalCode: '', 
     barcode: '',
     name: '',
+    basePresentationName: '',
     description: '',
     brand: '',
     location: '',
@@ -77,6 +78,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
         originalInternalCode: productToEdit.internalCode || '',
         barcode: productToEdit.barcode || '',
         name: productToEdit.name || '',
+        basePresentationName: basePres ? basePres.name : (productToEdit.name || ''),
         description: productToEdit.description || '',
         brand: productToEdit.brand || '',
         location: productToEdit.location || '',
@@ -148,9 +150,20 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       return;
     }
 
+    const hasMultiplePresentations = presentations.length > 0;
+
+    // LÓGICA CLAVE:
+    // - Si NO hay variantes: se duplica baseProduct.name como siempre.
+    // - Si SÍ hay variantes: usa basePresentationName (o le concatena el factor y unidad si lo dejaron igual).
+    const defaultBasePresName = `${baseProduct.name.trim()} (${baseProduct.baseStockFactor || 1}${baseProduct.unitOfMeasure || 'PZA'})`;
+    
+    const resolvedBasePresName = hasMultiplePresentations
+      ? (baseProduct.basePresentationName?.trim() || defaultBasePresName)
+      : baseProduct.name.trim();
+
     const basePresentation = {
       id: baseProduct.basePresentationId || 0,
-      name: baseProduct.name || "Presentación Base",
+      name: resolvedBasePresName,
       code: baseProduct.internalCode || "BASE",
       barcode: baseProduct.barcode || "",
       price: Number(baseProduct.baseSalePrice || 0),

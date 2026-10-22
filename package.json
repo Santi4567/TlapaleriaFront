@@ -1,6 +1,6 @@
 {
   "name": "tlapaleria-leo",
-  "version": "1.7.8",
+  "version": "1.7.9",
   "description": "Punto de venta y control de inventario",
   "main": "./out/main/index.js",
   "author": {
