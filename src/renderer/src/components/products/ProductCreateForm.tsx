@@ -50,7 +50,8 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
     profitMargin: "",
     baseSalePrice: "",
     baseStockFactor: "1",
-    basePresentationId: null, 
+    basePresentationId: null,
+    baseIsActive: true, // <-- NUEVO: Por defecto se vende al público
     unitOfMeasure: 'PZA',
     isInventoryTracked: false,
     allowFractions: false,
@@ -88,6 +89,7 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
         baseSalePrice: basePres ? basePres.price : "",
         baseStockFactor: basePres ? basePres.stockFactor : "1",
         basePresentationId: basePres ? basePres.id : null,
+        baseIsActive: basePres ? basePres.isActive !== false : true, // <-- NUEVO
         unitOfMeasure: productToEdit.unitOfMeasure || 'PZA',
         isInventoryTracked: productToEdit.isInventoryTracked,
         allowFractions: productToEdit.allowFractions || false,
@@ -103,7 +105,8 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
         barcode: p.barcode || '',
         price: p.price,
         supplierPrice: p.supplierPrice,
-        stockFactor: p.stockFactor
+        stockFactor: p.stockFactor,
+        isActive: p.isActive !== false // <-- NUEVO
       })));
     } else {
       setBaseProduct(initialBaseProduct);
@@ -152,9 +155,6 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
 
     const hasMultiplePresentations = presentations.length > 0;
 
-    // LÓGICA CLAVE:
-    // - Si NO hay variantes: se duplica baseProduct.name como siempre.
-    // - Si SÍ hay variantes: usa basePresentationName (o le concatena el factor y unidad si lo dejaron igual).
     const defaultBasePresName = `${baseProduct.name.trim()} (${baseProduct.baseStockFactor || 1}${baseProduct.unitOfMeasure || 'PZA'})`;
     
     const resolvedBasePresName = hasMultiplePresentations
@@ -168,7 +168,8 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       barcode: baseProduct.barcode || "",
       price: Number(baseProduct.baseSalePrice || 0),
       supplierPrice: Number(baseProduct.supplierPrice || 0),
-      stockFactor: Number(baseProduct.baseStockFactor || 1)
+      stockFactor: Number(baseProduct.baseStockFactor || 1),
+      isActive: baseProduct.baseIsActive !== false // <-- NUEVO
     };
 
     const formattedChildren = presentations.map(p => ({
@@ -176,9 +177,10 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       name: p.name,
       code: p.code,
       barcode: p.barcode || "",
-      price: Number(p.price),
+      price: Number(p.price || 0),
       supplierPrice: Number(p.supplierPrice || 0), 
-      stockFactor: Number(p.stockFactor)
+      stockFactor: Number(p.stockFactor),
+      isActive: p.isActive !== false // <-- NUEVO
     }));
 
     const finalPresentations = [basePresentation, ...formattedChildren];

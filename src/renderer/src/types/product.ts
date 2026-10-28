@@ -68,6 +68,7 @@ export interface CreatePresentationRequest {
   price: number;
   supplierPrice: number; 
   stockFactor: number;
+  isActive?: boolean;
 }
 
 export interface CreateProductRequest {
@@ -100,6 +101,7 @@ export interface UpdatePresentationRequest {
   price: number;
   supplierPrice: number;
   stockFactor: number;
+  isActive?: boolean;
 }
 
 export interface UpdateProductRequest {

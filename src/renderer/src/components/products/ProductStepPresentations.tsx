@@ -38,11 +38,80 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Calcula cuál es el StockFactor más alto entre la Base y todas las Variantes
+  const maxStockFactor = Math.max(
+    Number(baseProduct.baseStockFactor) || 0,
+    ...presentations.map(p => Number(p.stockFactor) || 0)
+  );
+
   const handleBaseFactorChange = () => {
-    if (!isEditing && presentations.length > 0) {
+    if (presentations.length > 0) {
       setFactorChangedWarning(true);
-      showNotification("⚠️ El factor cambió, revise las presentaciones antes de continuar.");
     }
+  };
+
+  // FUNCIÓN ESTRELLA: Toma la presentación con mayor StockFactor y recalcula costos y precios sugeridos de las demás
+  const handleRecalculateFromLargest = () => {
+    const baseFactor = Number(baseProduct.baseStockFactor) || 0;
+    const baseCost = Number(baseProduct.supplierPrice) || 0;
+
+    // Armamos lista completa para identificar cuál tiene el factor más grande
+    let largestFactor = baseFactor;
+    let largestCost = baseCost;
+
+    presentations.forEach(p => {
+      if (Number(p.stockFactor) > largestFactor) {
+        largestFactor = Number(p.stockFactor);
+        largestCost = Number(p.supplierPrice);
+      }
+    });
+
+    if (largestFactor <= 0 || largestCost <= 0) {
+      showNotification("Ingresa primero el Factor de Stock y Precio Proveedor de la presentación mayor.");
+      return;
+    }
+
+    const costPerUnit = largestCost / largestFactor;
+    const margin = Number(baseProduct.profitMargin) || 0;
+
+    // Si la presentación base NO era la mayor, también le actualizamos su costo sugerido
+    if (baseFactor < largestFactor && baseFactor > 0) {
+      const newBaseCost = Number((costPerUnit * baseFactor).toFixed(2));
+      const newBaseSale = baseProduct.baseIsActive !== false
+        ? Math.round(newBaseCost * (1 + margin / 100))
+        : baseProduct.baseSalePrice;
+      setBaseProduct((prev: any) => ({
+        ...prev,
+        supplierPrice: newBaseCost,
+        baseSalePrice: newBaseSale
+      }));
+    }
+
+    // Actualizamos las variantes hijas
+    const updatedChildren = presentations.map(p => {
+      const f = Number(p.stockFactor) || 0;
+      const isAct = p.isActive !== false;
+      if (f === largestFactor) {
+        return p; // La mayor se queda con su costo original
+      }
+      const newCost = Number((costPerUnit * f).toFixed(2));
+      const newPrice = isAct ? Math.round(newCost * (1 + margin / 100)) : Number(p.price || 0);
+      return {
+        ...p,
+        supplierPrice: newCost,
+        price: newPrice
+      };
+    });
+
+    setPresentations(updatedChildren);
+    setFactorChangedWarning(false);
+    showNotification(`✓ Costos y precios recalculados ($${costPerUnit.toFixed(2)} por 1 ${baseProduct.unitOfMeasure || 'unidad'}).`);
+  };
+
+  const handleToggleVariantActive = (idx: number) => {
+    setPresentations(prev =>
+      prev.map((item, i) => (i === idx ? { ...item, isActive: item.isActive === false } : item))
+    );
   };
 
   const handleDeletePresentation = (idx: number) => {
@@ -50,17 +119,17 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
     const yaExisteEnBD = !!item.id && Number(item.id) > 0;
 
     if (yaExisteEnBD) {
-      const confirmado = window.confirm(
-        `"${item.name}" ya existe en el catálogo. Al quitarla y guardar, esta presentación se DESACTIVARÁ (no se borra, pero dejará de venderse). ¿Continuar?`
-      );
-      if (!confirmado) return;
+      // Si ya existe en BD, en vez de borrarla del arreglo, simplemente la ponemos inactiva para que siga visible
+      handleToggleVariantActive(idx);
+      showNotification(`"${item.name}" cambió su estado activo/inactivo.`);
+      return;
     }
 
     setPresentations(presentations.filter((_, i) => i !== idx));
     if (editingIndex === idx) {
       setEditingIndex(null);
     }
-    showNotification(yaExisteEnBD ? "Se desactivará al guardar los cambios." : "Variante eliminada de la lista.");
+    showNotification("Variante nueva quitada de la lista.");
   };
 
   const validateAndFinish = useCallback(() => {
@@ -72,16 +141,27 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
       showNotification("El Precio de Proveedor no puede estar vacío ni ser negativo.");
       return;
     }
-    if (presentations.length === 0 && (!baseProduct.baseSalePrice || Number(baseProduct.baseSalePrice) <= 0)) {
-      showNotification("Debes especificar un 'Precio Venta al Público ($)' mayor a 0.");
+
+    const isBaseActive = baseProduct.baseIsActive !== false;
+    const activeVariants = presentations.filter(p => p.isActive !== false);
+
+    // Regla: Al menos 1 presentación (la Base o alguna Variante) debe estar activa para venderse en mostrador
+    if (!isBaseActive && activeVariants.length === 0) {
+      showNotification("Debes dejar al menos una presentación activa para venta al público.");
       return;
     }
+
+    if (isBaseActive && (!baseProduct.baseSalePrice || Number(baseProduct.baseSalePrice) <= 0)) {
+      showNotification("La Presentación Base está activa para venta al público y requiere un Precio mayor a $0.");
+      return;
+    }
+
     if (baseProduct.hasExpiration && (!baseProduct.nextExpirationDate || baseProduct.nextExpirationDate.length !== 10)) {
       showNotification("Activaste 'Tiene Caducidad', por favor selecciona la Fecha de Vencimiento.");
       return;
     }
     onFinishToSummary();
-  }, [baseProduct, presentations.length, onFinishToSummary, showNotification]);
+  }, [baseProduct, presentations, onFinishToSummary, showNotification]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -110,6 +190,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
           isLoadingSuppliers={isLoadingSuppliers}
           onBaseFactorChange={handleBaseFactorChange}
           hasVariants={presentations.length > 0}
+          isLargestPresentation={(Number(baseProduct.baseStockFactor) || 0) >= maxStockFactor}
         />
 
         {/* 2. BOTÓN Y FORMULARIO DE MÁS VARIANTES (HIJOS) */}
@@ -120,6 +201,7 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
           editingIndex={editingIndex}
           setEditingIndex={setEditingIndex}
           onDeletePresentation={handleDeletePresentation}
+          onRecalculateFromLargest={handleRecalculateFromLargest}
           showNotification={showNotification}
           factorChangedWarning={factorChangedWarning}
           onDismissFactorWarning={() => setFactorChangedWarning(false)}
@@ -167,11 +249,16 @@ const ProductStepPresentations: React.FC<ProductStepPresentationsProps> = ({
       <PresentationsSidebar
         baseProduct={baseProduct}
         presentations={presentations}
+        maxStockFactor={maxStockFactor}
         onSelectBase={() => scrollToSection('seccion-base')}
+        onToggleBaseActive={() =>
+          setBaseProduct((prev: any) => ({ ...prev, baseIsActive: prev.baseIsActive === false }))
+        }
         onSelectVariant={(idx) => {
           scrollToSection('seccion-variantes');
           setEditingIndex(idx);
         }}
+        onToggleVariantActive={handleToggleVariantActive}
         onDeleteVariant={handleDeletePresentation}
       />
     </div>

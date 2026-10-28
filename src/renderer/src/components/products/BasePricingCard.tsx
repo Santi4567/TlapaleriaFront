@@ -9,12 +9,14 @@ interface BasePricingCardProps {
   isLoadingSuppliers: boolean;
   onBaseFactorChange?: (newFactor: number | string) => void;
   hasVariants?: boolean;
+  isLargestPresentation?: boolean; // <-- NUEVO: Indica visualmente si es la presentación mayor
 }
 
 const UNIT_OPTIONS = [
   { value: 'PZA', label: 'PZA (PIEZA)' },
   { value: 'KG', label: 'KG (KILOGRAMO)' },
   { value: 'L', label: 'L (LITRO)' },
+  { value: 'M', label: 'M (METRO)' },
   { value: 'JGO', label: 'JGO (JUEGO)' },
   { value: 'PAR', label: 'PAR' }
 ];
@@ -25,15 +27,17 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
   suppliers = [],
   isLoadingSuppliers,
   onBaseFactorChange,
-  hasVariants = false
+  hasVariants = false,
+  isLargestPresentation = true
 }) => {
   const [supplierQuery, setSupplierQuery] = useState('');
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [activeSupplierIndex, setActiveSupplierIndex] = useState(0);
 
-  // Estado para bloquear/desbloquear el Nombre Genérico del producto padre
   const [isEditingGenericName, setIsEditingGenericName] = useState(false);
   const genericNameInputRef = useRef<HTMLInputElement>(null);
+
+  const isForSale = baseProduct.baseIsActive !== false;
 
   const preventNegativeKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
@@ -48,7 +52,6 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
     }
   }, [baseProduct.supplierId, suppliers, showSupplierDropdown]);
 
-  // Autollenar el nombre de la Presentación 1 cuando se agregan variantes
   useEffect(() => {
     if (hasVariants) {
       const currentBaseName = (baseProduct.basePresentationName || '').trim();
@@ -68,7 +71,6 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasVariants]);
 
-  // Dar foco automático cuando presionan el botón "Editar" del nombre genérico
   useEffect(() => {
     if (isEditingGenericName && genericNameInputRef.current) {
       genericNameInputRef.current.focus();
@@ -161,6 +163,11 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
       const salePrice = parseFloat(prev.baseSalePrice);
       const margin = parseFloat(prev.profitMargin);
 
+      // Si no se vende al público, solo guardamos el costo sin tocar precio de venta
+      if (prev.baseIsActive === false) {
+        return { ...prev, supplierPrice: cost };
+      }
+
       if (!isNaN(salePrice) && salePrice > 0 && cost > 0) {
         const newMargin = Number((((salePrice / cost) - 1) * 100).toFixed(2));
         return { ...prev, supplierPrice: cost, profitMargin: newMargin };
@@ -185,7 +192,7 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
     setBaseProduct((prev: any) => {
       const cost = parseFloat(prev.supplierPrice);
       let newSale = prev.baseSalePrice;
-      if (!isNaN(cost) && cost > 0) {
+      if (prev.baseIsActive !== false && !isNaN(cost) && cost > 0) {
         newSale = Math.max(0, Math.round(cost * (1 + margin / 100)));
       }
       return { ...prev, profitMargin: margin, baseSalePrice: newSale };
@@ -208,15 +215,39 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
 
   return (
     <div id="seccion-base" className="p-6 bg-[#121212] rounded-2xl border border-gray-800 space-y-6">
-      <h3 className="text-xl font-bold text-white border-b border-gray-800 pb-3">
-        1. Presentación Principal (Base) y Costos
-      </h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h3 className="text-xl font-bold text-white">
+            1. Presentación Principal (Base / Compra)
+          </h3>
+          {hasVariants && isLargestPresentation && (
+            <span className="bg-blue-500/20 text-blue-400 border border-blue-500/40 text-xs font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider">
+              ★ Presentación Mayor (Madre)
+            </span>
+          )}
+        </div>
+
+        {/* SWITCH: ¿SE VENDE AL PÚBLICO EN MOSTRADOR? */}
+        <div
+          onClick={() => setBaseProduct((prev: any) => ({ ...prev, baseIsActive: !isForSale }))}
+          className="flex items-center gap-3 cursor-pointer bg-black/40 px-3.5 py-2 rounded-xl border border-gray-800 hover:border-gray-600 transition-all"
+          title="Si la desactivas (ej. Caja de 144 armellas o Bulto que solo vendes por kilo), no aparecerá en caja pero servirá para calcular costos."
+        >
+          <span className={`text-xs font-extrabold uppercase ${isForSale ? 'text-green-400' : 'text-yellow-400'}`}>
+            {isForSale ? '✓ Venta al Público Activa' : '🔒 Solo Referencia Compra (No se vende)'}
+          </span>
+          <button
+            type="button"
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isForSale ? 'bg-green-500' : 'bg-gray-700'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${isForSale ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+      </div>
 
       {/* BLOQUE QUE APARECE CUANDO HAY MÁS DE 1 PRESENTACIÓN */}
       {hasVariants && (
         <div className="p-4 bg-black/40 border border-brand-orange/40 rounded-xl space-y-4 animate-in fade-in duration-200">
-          
-          {/* ARRIBA: NOMBRE GENÉRICO DESHABILITADO CON BOTÓN PARA EDITAR */}
           <div>
             <label className="block text-xs text-gray-400 font-bold mb-1.5 uppercase">
               Nombre Genérico del Producto (Buscador General)
@@ -228,7 +259,7 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
                 disabled={!isEditingGenericName}
                 value={baseProduct.name}
                 onChange={e => setBaseProduct({ ...baseProduct, name: e.target.value })}
-                placeholder="Ej. CARBON No.10"
+                placeholder="Ej. ARMELLA CERRADA 20X70"
                 className={`flex-1 rounded-xl px-4 py-2.5 text-base font-bold transition-all focus:outline-none ${
                   isEditingGenericName
                     ? 'bg-[#1a1a1a] border border-brand-orange text-white'
@@ -249,10 +280,9 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
             </div>
           </div>
 
-          {/* DEBAJO: NOMBRE DE LA PRESENTACIÓN 1 */}
           <div>
             <label className="block text-xs text-brand-orange font-bold mb-1.5 uppercase">
-              Nombre de la Presentación 1 (Base: x{baseProduct.baseStockFactor || 1} {baseProduct.unitOfMeasure || 'PZA'}) *
+              Nombre de la Presentación 1 (Ej. Caja 144 pzas, Bulto 50kg, Pieza) *
             </label>
             <input
               type="text"
@@ -262,7 +292,6 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
               className="w-full bg-[#1a1a1a] border border-brand-orange/60 text-white text-base rounded-xl px-4 py-2.5 focus:border-brand-orange focus:outline-none font-bold"
             />
           </div>
-
         </div>
       )}
 
@@ -336,7 +365,7 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
         </div>
 
         <div>
-          <label className="block text-gray-300 font-bold mb-2">Unidad de Medida *</label>
+          <label className="block text-gray-300 font-bold mb-2">Unidad Base *</label>
           <select
             style={{ colorScheme: 'dark' }}
             value={baseProduct.unitOfMeasure || 'PZA'}
@@ -352,11 +381,14 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
         </div>
 
         <div>
-          <label className="block text-gray-300 font-bold mb-2">Factor de Stock</label>
+          <label className="block text-gray-300 font-bold mb-2" title="Ej. 144 si es caja de 144 piezas, 50 si es bulto de 50kg, o 1 si es pieza suelta">
+            Factor de Stock ({baseProduct.unitOfMeasure || 'PZA'})
+          </label>
           <input
             type="number"
             min="0"
             step="any"
+            placeholder="Ej. 144 o 50 o 1"
             onKeyDown={preventNegativeKey}
             value={baseProduct.baseStockFactor === "" ? "" : baseProduct.baseStockFactor}
             onChange={e => handleFactorChange(e.target.value)}
@@ -369,17 +401,22 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
       <div className="pt-4 border-t border-gray-800 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
         <div>
           <label className="block text-brand-orange font-extrabold text-sm mb-2 uppercase tracking-wide">
-            1. Precio Venta al Público ($) *
+            1. Precio Venta al Público ($) {isForSale ? '*' : '(Opcional / No se vende)'}
           </label>
           <input
             type="number"
             min="0"
             step="any"
-            placeholder="0.00"
+            disabled={!isForSale}
+            placeholder={isForSale ? "0.00" : "No aplica (Solo compra)"}
             onKeyDown={preventNegativeKey}
             value={baseProduct.baseSalePrice === "" ? "" : baseProduct.baseSalePrice}
             onChange={e => handleSalePriceChange(e.target.value)}
-            className="w-full bg-[#0a0a0a] border-2 border-brand-orange text-brand-orange text-2xl rounded-xl px-4 py-3 focus:outline-none font-mono font-black shadow-[0_0_15px_rgba(255,90,0,0.15)]"
+            className={`w-full rounded-xl px-4 py-3 focus:outline-none font-mono font-black text-2xl transition-all ${
+              isForSale
+                ? 'bg-[#0a0a0a] border-2 border-brand-orange text-brand-orange shadow-[0_0_15px_rgba(255,90,0,0.15)]'
+                : 'bg-black/40 border border-gray-800 text-gray-500 cursor-not-allowed opacity-60'
+            }`}
           />
         </div>
 
@@ -391,7 +428,7 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
             type="number"
             min="0"
             step="any"
-            placeholder="Costo de compra"
+            placeholder="Costo del bulto/caja/pieza"
             onKeyDown={preventNegativeKey}
             value={baseProduct.supplierPrice === "" ? "" : baseProduct.supplierPrice}
             onChange={e => handleSupplierPriceChange(e.target.value)}
@@ -401,14 +438,14 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
 
         <div>
           <label className="block text-gray-300 font-bold text-sm mb-2 uppercase tracking-wide">
-            3. Ganancia (%)
+            3. Ganancia Base (%)
           </label>
           <div className="relative">
             <input
               type="number"
               min="0"
               step="any"
-              placeholder="Ej. 30"
+              placeholder="Ej. 50"
               onKeyDown={preventNegativeKey}
               value={baseProduct.profitMargin === "" ? "" : baseProduct.profitMargin}
               onChange={e => handleProfitMarginChange(e.target.value)}
@@ -419,9 +456,17 @@ const BasePricingCard: React.FC<BasePricingCardProps> = ({
         </div>
       </div>
 
-      <p className="text-xs text-gray-500">
-        ⚡ Cálculo automático activo: Escribe el costo de proveedor y el precio público (o el porcentaje de ganancia) y el otro campo se calculará al instante.
-      </p>
+      {/* RESUMEN DE COSTO POR UNIDAD CUANDO EL FACTOR ES MAYOR A 1 */}
+      {Number(baseProduct.baseStockFactor) > 1 && Number(baseProduct.supplierPrice) > 0 && (
+        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between text-xs text-blue-300 font-bold">
+          <span>
+            💡 Costo unitario resultante ({baseProduct.supplierPrice} ÷ {baseProduct.baseStockFactor} {baseProduct.unitOfMeasure}):
+          </span>
+          <span className="font-mono text-sm text-white bg-blue-500/20 px-2.5 py-1 rounded-lg">
+            ${(Number(baseProduct.supplierPrice) / Number(baseProduct.baseStockFactor)).toFixed(2)} por 1 {baseProduct.unitOfMeasure}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
