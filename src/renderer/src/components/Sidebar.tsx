@@ -5,19 +5,20 @@ import { useAuth } from '../context/AuthContext';
 interface SidebarProps {
   currentView: string;
   onNavigate: (view: string) => void;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
-  const { user, logout } = useAuth();
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) => {
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const checkPermission = (categoria: string, permiso: string) => {
     const userPerms = (user as any)?.permisos;
-    if (!userPerms) return true; 
+    if (!userPerms) return true;
     return userPerms[categoria]?.includes(permiso) || false;
   };
 
-const menuItems = [
+  const menuItems = [
     { id: 'HOME', label: 'Inicio', show: true, icon: (
         <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
       ) },
@@ -53,6 +54,9 @@ const menuItems = [
       ) }
   ];
 
+  // Solo los botones visibles según permisos (así el retraso de la cascada no cuenta los ocultos)
+  const visibleItems = menuItems.filter((item) => item.show);
+
   // Las etiquetas SIEMPRE se quedan en el flujo del layout (nunca 'absolute').
   // Al colapsar se desvanecen rápido y el botón (overflow-hidden) las recorta mientras
   // el ancho se encoge; al expandir esperan 100 ms a que haya espacio antes de aparecer.
@@ -61,73 +65,66 @@ const menuItems = [
     : 'opacity-0 -translate-x-2 duration-100';
 
   return (
-<aside 
+    <aside
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
-      // AGREGAMOS: h-[calc(100vh-2rem)] para fijar la altura exacta a la pantalla menos los márgenes m-4
-      className={`bg-[#121212] m-4 h-[calc(96vh-2rem)] rounded-3xl shadow-2xl flex flex-col py-6 transition-[width] duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] relative z-40 border border-gray-800/50
+      className={`animate-sidebar-in motion-reduce:animate-none bg-[#121212] m-4 h-[calc(96vh-2rem)] rounded-3xl shadow-2xl flex flex-col py-6 transition-[width] duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] relative z-40 border border-gray-800/50
         ${isExpanded ? 'w-64' : 'w-20'}`}
     >
-      {/* 1. SECCIÓN SUPERIOR CON SCROLL: 
-          flex-1 (toma el espacio sobrante) 
-          overflow-y-auto (permite scroll vertical)
-          overflow-x-hidden (evita que el texto desborde al colapsar)
-          Clases extra para ocultar la barra de scroll visualmente pero mantener la función */}
-        <div
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3"
-        >        {menuItems.map((item) =>
-          item.show && (
-            <button 
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              // CAMBIO AQUÍ: transition-colors en lugar de transition-all
-              className={`flex items-center p-3 rounded-2xl transition-colors duration-200 group relative overflow-hidden shrink-0
-                ${currentView === item.id 
-                  ? 'bg-brand-orange text-brand-deep-dark shadow-[0_0_15px_rgba(255,90,0,0.3)]' 
-                  : 'text-brand-text-muted hover:text-white hover:bg-gray-800/80'}`}
-            >
-              <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
-                {item.icon}
-              </div>
-              <span className={`font-bold tracking-wide whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
-                {item.label}
-              </span>
-            </button>
-          )
-        )}
+      {/* 1. SECCIÓN SUPERIOR CON SCROLL (scrollbar oculta pero funcional) */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] flex flex-col space-y-3 px-3">
+        {visibleItems.map((item, i) => (
+          <button
+            key={item.id}
+            onClick={() => onNavigate(item.id)}
+            style={{ animationDelay: `${150 + i * 50}ms` }}
+            className={`animate-item-in motion-reduce:animate-none flex items-center p-3 rounded-2xl transition-colors duration-200 group relative overflow-hidden shrink-0
+              ${currentView === item.id
+                ? 'bg-brand-orange text-brand-deep-dark shadow-[0_0_15px_rgba(255,90,0,0.3)]'
+                : 'text-brand-text-muted hover:text-white hover:bg-gray-800/80'}`}
+          >
+            <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+              {item.icon}
+            </div>
+            <span className={`font-bold tracking-wide whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
+              {item.label}
+            </span>
+          </button>
+        ))}
       </div>
 
-      {/* 2. SECCIÓN INFERIOR FIJA:
-          shrink-0 (evita que esta caja se aplaste si arriba hay muchos items) 
-          mt-2 (da un ligero margen respecto a la zona de scroll) */}
-      <div className="px-3 border-t border-gray-800/50 pt-4 mt-2 shrink-0">
-         <button 
-            onClick={logout}
-            className="flex items-center p-3 w-full text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-colors group overflow-hidden mb-4"
-          >
-            <div className="shrink-0">
-              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
-            </div>
-            <span className={`font-bold whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
-              Cerrar Sesión
-            </span>
-         </button>
+      {/* 2. SECCIÓN INFERIOR FIJA (aparece al final de la cascada) */}
+      <div
+        style={{ animationDelay: `${150 + visibleItems.length * 50}ms` }}
+        className="animate-item-in motion-reduce:animate-none px-3 border-t border-gray-800/50 pt-4 mt-2 shrink-0"
+      >
+        <button
+          onClick={onLogout}
+          className="flex items-center p-3 w-full text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-colors group overflow-hidden mb-4"
+        >
+          <div className="shrink-0">
+            <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+          </div>
+          <span className={`font-bold whitespace-nowrap ml-4 transition-[opacity,translate] ${labelMotion}`}>
+            Cerrar Sesión
+          </span>
+        </button>
 
-         <button 
-            onClick={() => onNavigate('USER')}
-            className={`w-full flex items-center p-2 bg-black/40 rounded-2xl overflow-hidden border transition-colors duration-200 group
-              ${currentView === 'USER' 
-                ? 'border-brand-orange bg-gray-800/80 shadow-[0_0_10px_rgba(255,90,0,0.1)]' 
-                : 'border-gray-800/50 hover:bg-gray-800/80 hover:border-gray-600'}`}
-          >
-            <div className="shrink-0 w-10 h-10 bg-gray-800 text-brand-orange font-bold rounded-xl flex items-center justify-center border border-gray-700 group-hover:scale-105 transition-transform">
-              {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
-            </div>
-            <div className={`ml-3 whitespace-nowrap flex flex-col items-start transition-[opacity,translate] ${labelMotion}`}>
-              <span className="text-sm font-bold truncate max-w-[140px] text-white group-hover:text-brand-orange transition-colors">{user?.name || 'Usuario'}</span>
-              <span className="text-xs text-brand-text-muted">{user?.rol || 'Admin'}</span>
-            </div>
-         </button>
+        <button
+          onClick={() => onNavigate('USER')}
+          className={`w-full flex items-center p-2 bg-black/40 rounded-2xl overflow-hidden border transition-colors duration-200 group
+            ${currentView === 'USER'
+              ? 'border-brand-orange bg-gray-800/80 shadow-[0_0_10px_rgba(255,90,0,0.1)]'
+              : 'border-gray-800/50 hover:bg-gray-800/80 hover:border-gray-600'}`}
+        >
+          <div className="shrink-0 w-10 h-10 bg-gray-800 text-brand-orange font-bold rounded-xl flex items-center justify-center border border-gray-700 group-hover:scale-105 transition-transform">
+            {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+          </div>
+          <div className={`ml-3 whitespace-nowrap flex flex-col items-start transition-[opacity,translate] ${labelMotion}`}>
+            <span className="text-sm font-bold truncate max-w-[140px] text-white group-hover:text-brand-orange transition-colors">{user?.name || 'Usuario'}</span>
+            <span className="text-xs text-brand-text-muted">{user?.rol || 'Admin'}</span>
+          </div>
+        </button>
       </div>
     </aside>
   );
