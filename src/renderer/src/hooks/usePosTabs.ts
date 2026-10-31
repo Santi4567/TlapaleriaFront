@@ -111,8 +111,10 @@ export const usePosTabs = (onStockConflict?: (message: string) => void) => {
     // 1. Liberar las presentaciones que ya no están en ninguna pestaña de venta
     for (const [presId] of Array.from(syncedQuantitiesRef.current.entries())) {
       if (!desired.has(presId)) {
-        syncedQuantitiesRef.current.delete(presId);
-        await inventoryHubService.removeItem(presId);
+        const removed = await inventoryHubService.removeItem(presId);
+        if (removed) {
+          syncedQuantitiesRef.current.delete(presId);
+        }
       }
     }
 
@@ -120,10 +122,12 @@ export const usePosTabs = (onStockConflict?: (message: string) => void) => {
     for (const [presId, info] of Array.from(desired.entries())) {
       const lastQty = syncedQuantitiesRef.current.get(presId);
       if (lastQty !== info.quantity) {
-        syncedQuantitiesRef.current.set(presId, info.quantity);
         const res = await inventoryHubService.setItemQuantity(presId, info.quantity);
+        if (!res) continue;
 
-        if (res && !res.success && res.data) {
+        syncedQuantitiesRef.current.set(presId, info.quantity);
+
+        if (!res.success && res.data) {
           onStockConflictRef.current?.(`⚠️ ${res.message}`);
           const maxUnitsAvailable = info.allowFractions
             ? parseFloat((res.data.availableStock / info.stockFactor).toFixed(2))

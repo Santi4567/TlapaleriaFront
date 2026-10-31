@@ -41,7 +41,7 @@ class InventoryHubService {
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL, {
         accessTokenFactory: () => this.currentToken || '',
-        withCredentials: true
+        withCredentials: false
       })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
@@ -106,11 +106,24 @@ class InventoryHubService {
     };
   }
 
+  private async ensureConnected(): Promise<boolean> {
+    if (this.startPromise) {
+      await this.startPromise;
+    }
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      return true;
+    }
+    if (this.currentToken) {
+      await this.connect(this.currentToken);
+    }
+    return this.connection?.state === signalR.HubConnectionState.Connected;
+  }
+
   async setItemQuantity(
     presentationId: number,
     quantity: number
   ): Promise<ApiResponse<StockReservationResult> | null> {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+    if (!(await this.ensureConnected()) || !this.connection) {
       return null;
     }
 
@@ -126,27 +139,31 @@ class InventoryHubService {
     }
   }
 
-  async removeItem(presentationId: number): Promise<void> {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
-      return;
+  async removeItem(presentationId: number): Promise<boolean> {
+    if (!(await this.ensureConnected()) || !this.connection) {
+      return false;
     }
 
     try {
       await this.connection.invoke('RemoveItem', presentationId);
+      return true;
     } catch (error) {
       console.warn('[InventoryHub] Error en RemoveItem:', error);
+      return false;
     }
   }
 
-  async clearCart(): Promise<void> {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
-      return;
+  async clearCart(): Promise<boolean> {
+    if (!(await this.ensureConnected()) || !this.connection) {
+      return false;
     }
 
     try {
       await this.connection.invoke('ClearCart');
+      return true;
     } catch (error) {
       console.warn('[InventoryHub] Error en ClearCart:', error);
+      return false;
     }
   }
 }
