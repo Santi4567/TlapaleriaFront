@@ -77,6 +77,12 @@ class InventoryHubService {
       this.stockListeners.forEach((listener) => listener(normalized));
     });
 
+    conn.on('WorkTasksUpdated', (raw: any) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('worktasks-updated', { detail: raw }));
+      }
+    });
+
     conn.onreconnected(() => {
       this.reconnectListeners.forEach((listener) => listener());
     });

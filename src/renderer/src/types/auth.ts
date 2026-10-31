@@ -55,6 +55,8 @@ export interface Permisos {
   INVENTORYMOVEMENTS?: string[];
   RETURNS?: string[];
   SALES?: string[];
+  EXPENSES?: string[];
+  WORK?: string[];
 }
 
 export interface User {

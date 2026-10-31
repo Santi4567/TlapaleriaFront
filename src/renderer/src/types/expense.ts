@@ -1,18 +1,37 @@
 // src/types/expense.ts
 
+export interface ExpenseSupplierSummary {
+  id: number;
+  name: string;
+  contactName?: string;
+  phone?: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  type?: 'COGS' | 'Operativo' | string;
+  isActive: boolean;
+}
+
 export interface Expense {
   id: number;
   concept: string;
   amount: number;
-  paymentMethod: 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Cheque';
+  expenseDate?: string;
+  paymentMethod: 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Cheque' | string;
   categoryId: number;
+  category?: Category;
   supplierId?: number;
+  supplier?: ExpenseSupplierSummary;
   accountsPayableId?: number;
+  accountsPayable?: AccountPayable;
   scheduleId?: number;
   receiptNumber?: string;
   receiptUrl?: string;
   isActive: boolean;
   createdAt: string;
+  cancelledAt?: string;
 }
 
 export interface CreateExpenseDto {
@@ -24,16 +43,20 @@ export interface CreateExpenseDto {
   accountsPayableId?: number;
   scheduleId?: number;
   receiptNumber?: string;
+  receiptUrl?: string;
 }
 
 export interface AccountPayable {
   id: number;
   supplierId: number;
+  supplier?: ExpenseSupplierSummary;
   concept: string;
   totalAmount: number;
   balance: number;
-  status: 'Pendiente' | 'Parcial' | 'Pagado' | 'Vencido' | 'Cancelada';
+  status: 'Pendiente' | 'Parcial' | 'Pagado' | 'Vencido' | 'Cancelada' | string;
   dueDate?: string;
+  paymentFrequencyDays?: number;
+  isActive?: boolean;
   createdAt: string;
   paymentSchedules?: PaymentSchedule[];
 }
@@ -49,13 +72,28 @@ export interface CreateAccountPayableDto {
 export interface PaymentSchedule {
   id: number;
   accountsPayableId: number;
-  scheduleDate: string;
+  accountsPayable?: AccountPayable;
+  installmentNumber?: number;
+  dueDate?: string;
+  scheduleDate?: string;
   amount: number;
-  status: string;
+  status: 'Pendiente' | 'Pagado' | 'Vencido' | 'Cancelada' | string;
 }
 
-export interface Category {
+export interface PaymentReminder {
   id: number;
-  name: string;
-  isActive: boolean;
+  scheduleId: number;
+  schedule?: PaymentSchedule;
+  remindAt: string;
+  channel: string;
+  status: 'Pendiente' | 'Enviada' | 'Leida' | 'Cancelada' | string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+export interface PagedExpenseResponse<T> {
+  data: T[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
 }

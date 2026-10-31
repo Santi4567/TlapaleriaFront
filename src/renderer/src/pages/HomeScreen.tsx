@@ -1,15 +1,54 @@
 // src/pages/HomeScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { workTaskService } from '../services/workTaskService';
+import { WorkTask } from '../types/workTask';
 
-const HomeScreen: React.FC = () => {
+interface HomeScreenProps {
+  onNavigate?: (view: string) => void;
+}
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const token = user?.token ?? null;
   
   // Estado para manejar el reloj en tiempo real
   const [time, setTime] = useState(new Date());
   
   // Estado para la libreta de notas rápida
   const [nota, setNota] = useState('Revisar el pedido de herramientas que llega a las 4:00 PM. Separar el material del cliente Gómez.');
+
+  // Estado para el widget de Mis Tareas Pendientes
+  const [myActiveTasks, setMyActiveTasks] = useState<WorkTask[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
+  const loadMyActiveTasks = useCallback(async () => {
+    if (!token) return;
+    setIsLoadingTasks(true);
+    try {
+      const res = await workTaskService.getMyTasks(token);
+      if (res.ok) {
+        const json = await res.json();
+        const all: WorkTask[] = json.data || [];
+        setMyActiveTasks(
+          all.filter((t) => t.status === 'Pendiente' || t.status === 'EnProgreso')
+        );
+      }
+    } catch {
+      // Silencioso en caso de que el endpoint aún se esté desplegando
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadMyActiveTasks();
+    const handleTasksUpdate = () => loadMyActiveTasks();
+    window.addEventListener('worktasks-updated', handleTasksUpdate);
+    return () => {
+      window.removeEventListener('worktasks-updated', handleTasksUpdate);
+    };
+  }, [loadMyActiveTasks]);
 
   useEffect(() => {
     // Actualizamos el reloj cada segundo
@@ -47,6 +86,72 @@ const HomeScreen: React.FC = () => {
       {/* ÁREA DE WIDGETS OPERATIVOS (Grid de 3 columnas) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
+        {/* WIDGET DESTACADO: Mis Tareas Pendientes */}
+        <div className="bg-[#1e1e1e] border border-brand-orange/40 rounded-3xl p-6 shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-brand-orange/15 rounded-xl text-brand-orange">
+                <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Mis Tareas</h3>
+                <span className="text-xs text-brand-text-muted">
+                  {myActiveTasks.length} {myActiveTasks.length === 1 ? 'pendiente activa' : 'pendientes activas'}
+                </span>
+              </div>
+            </div>
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() => onNavigate('WORK')}
+                className="px-3 py-1.5 rounded-xl bg-brand-orange hover:bg-orange-500 text-black text-xs font-extrabold transition-colors cursor-pointer"
+              >
+                Abrir Tareas →
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-44 pr-1 custom-scrollbar">
+            {isLoadingTasks ? (
+              <p className="text-xs text-brand-text-muted py-4 text-center">Cargando tareas...</p>
+            ) : myActiveTasks.length === 0 ? (
+              <div className="bg-black/30 border border-gray-800/60 rounded-xl p-4 text-center">
+                <p className="text-sm font-bold text-green-400">¡Sin tareas pendientes!</p>
+                <p className="text-xs text-brand-text-muted mt-0.5">Estás al día con tus actividades</p>
+              </div>
+            ) : (
+              myActiveTasks.slice(0, 4).map((task) => {
+                const isUrgent = (task.priority || '').toLowerCase() === 'urgente';
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => onNavigate && onNavigate('WORK')}
+                    className="flex items-center justify-between bg-black/30 hover:bg-black/50 p-3 rounded-xl border border-gray-800/60 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          isUrgent
+                            ? 'bg-red-500 animate-pulse'
+                            : task.status === 'EnProgreso'
+                            ? 'bg-blue-400'
+                            : 'bg-brand-orange'
+                        }`}
+                      />
+                      <span className="text-sm font-semibold text-white truncate">{task.title}</span>
+                    </div>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-gray-800 text-gray-300 shrink-0 ml-2">
+                      {task.status === 'EnProgreso' ? 'En Curso' : task.priority}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
         {/* WIDGET 1: Venta Total Hoy */}
         <div className="bg-[#1e1e1e] border border-gray-700/50 rounded-3xl p-6 shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
           <div className="flex items-center space-x-3 mb-4">
@@ -132,37 +237,6 @@ const HomeScreen: React.FC = () => {
               <span className="text-sm font-medium text-brand-text truncate mr-2">Pala Truper Cuadrada</span>
               <span className="text-sm font-black text-brand-orange">5 un</span>
             </div>
-          </div>
-        </div>
-
-        {/* WIDGET 6: Actividad Reciente */}
-        <div className="bg-[#1e1e1e] border border-gray-700/50 rounded-3xl p-6 shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-teal-500/10 rounded-xl text-teal-500">
-              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <h3 className="text-xl font-bold text-white">Actividad Reciente</h3>
-          </div>
-          <div className="space-y-4 flex-1 pt-2">
-            
-            <div className="relative pl-5 border-l border-gray-700 ml-2">
-              <div className="absolute w-2.5 h-2.5 bg-brand-orange rounded-full -left-[5.5px] top-1"></div>
-              <p className="text-xs text-brand-text-muted mb-0.5">Hace 5 min</p>
-              <p className="text-sm font-medium text-white">Ticket #1042 cobrado en mostrador</p>
-            </div>
-            
-            <div className="relative pl-5 border-l border-gray-700 ml-2">
-              <div className="absolute w-2.5 h-2.5 bg-gray-500 rounded-full -left-[5.5px] top-1"></div>
-              <p className="text-xs text-brand-text-muted mb-0.5">Hace 45 min</p>
-              <p className="text-sm font-medium text-white">Ingreso de stock: Tornillería</p>
-            </div>
-            
-            <div className="relative pl-5 border-l border-transparent ml-2">
-              <div className="absolute w-2.5 h-2.5 bg-gray-500 rounded-full -left-[5.5px] top-1"></div>
-              <p className="text-xs text-brand-text-muted mb-0.5">08:00 AM</p>
-              <p className="text-sm font-medium text-white">Inicio de turno y apertura de caja</p>
-            </div>
-
           </div>
         </div>
 

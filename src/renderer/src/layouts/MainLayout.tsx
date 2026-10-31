@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 // Importamos todas las páginas
 import HomeScreen from '../pages/HomeScreen';
 import PosScreen from '../pages/PosScreen';
+import WorkTasksScreen from '../pages/WorkTasksScreen';
 import ProductsScreen from '../pages/ProductsScreen';
 import ProductHistoryScreen from "../pages/ProductHistoryScreen";
 import SuppliersScreen from '../pages/SuppliersScreen';
@@ -37,8 +38,9 @@ const MainLayout: React.FC = () => {
 
   const renderView = () => {
     switch (currentView) {
-      case 'HOME': return <HomeScreen />;
+      case 'HOME': return <HomeScreen onNavigate={setCurrentView} />;
       case 'POS': return <PosScreen />;
+      case 'WORK': return <WorkTasksScreen />;
       case 'PRODUCTS': return <ProductsScreen />;
       case 'SUPPLIERS': return <SuppliersScreen />;
       case 'PENDING': return <PendingOrdersScreen />;
@@ -49,7 +51,7 @@ const MainLayout: React.FC = () => {
       case 'ROL': return <RoleManagementScreen />;
       case 'EXPENSES': return <ExpensesScreen />;
       case 'PRODUCT_HISTORY': return <ProductHistoryScreen />;
-      default: return <HomeScreen />;
+      default: return <HomeScreen onNavigate={setCurrentView} />;
     }
   };
 

@@ -1,153 +1,263 @@
-import React, { useState } from 'react';
-// import { expenseService } from '../../services/expenseService';
+// src/components/expenses/RemindersTable.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { AccountPayable, PaymentReminder, PaymentSchedule } from '../../types/expense';
+import { expenseService } from '../../services/expenseService';
+import { useAuth } from '../../context/AuthContext';
 
-// Interfaz temporal para el componente (debería ir en types/expense.ts)
-interface Reminder {
-  id: number;
-  supplier: string;
-  installmentDetails: string;
-  dueDate: string;
-  amount: number;
-  channel: string;
-  isOverdue: boolean;
+const READ_REMINDERS_STORAGE_KEY = 'tlapaleria_read_reminders';
+
+export const getReadReminderIds = (): number[] => {
+  try {
+    const raw = localStorage.getItem(READ_REMINDERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveReadReminderId = (id: number) => {
+  try {
+    const current = getReadReminderIds();
+    if (!current.includes(id)) {
+      localStorage.setItem(READ_REMINDERS_STORAGE_KEY, JSON.stringify([...current, id]));
+    }
+  } catch {
+    // ignore storage errors
+  }
+};
+
+interface Props {
+  refreshTrigger?: number;
+  onCountChange?: (count: number) => void;
+  onPayReminder?: (debt: AccountPayable, schedule: PaymentSchedule) => void;
 }
 
-const RemindersTable: React.FC = () => {
-  // Estado para simular la carga y marcado de lectura
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+export const RemindersTable: React.FC<Props> = ({
+  refreshTrigger = 0,
+  onCountChange,
+  onPayReminder
+}) => {
+  const { user } = useAuth();
+  const token = user?.token ?? null;
+  const canAddExpense = Boolean((user?.permisos as any)?.EXPENSES?.includes('add.expenses'));
 
-  // Mock data basado en el boceto HTML
-  const [reminders, setReminders] = useState<Reminder[]>([
-    {
-      id: 1,
-      supplier: 'Truper',
-      installmentDetails: 'Cuota 3',
-      amount: 5000,
-      dueDate: '2026-09-28',
-      channel: 'InApp',
-      isOverdue: false
-    },
-    {
-      id: 2,
-      supplier: 'Materiales del Norte',
-      installmentDetails: 'Cuota 1',
-      amount: 1200,
-      dueDate: '2026-09-24', // Fecha en el pasado simulando vencimiento
-      channel: 'InApp',
-      isOverdue: true
+  const [reminders, setReminders] = useState<PaymentReminder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadReminders = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await expenseService.getPendingReminders(token);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'No se pudieron obtener los recordatorios pendientes.');
+      }
+
+      const readIds = getReadReminderIds();
+      const rawList: PaymentReminder[] = json.data || [];
+
+      // Filtramos los que ya fueron marcados como leídos o cuya cuota ya fue pagada
+      const activeList = rawList.filter((rem) => {
+        if (readIds.includes(rem.id)) return false;
+        const scheduleStatus = (rem.schedule?.status || '').toLowerCase();
+        if (scheduleStatus === 'pagado' || scheduleStatus === 'cancelada') return false;
+        return true;
+      });
+
+      setReminders(activeList);
+      if (onCountChange) onCountChange(activeList.length);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar los recordatorios.');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  }, [token, onCountChange]);
 
+  useEffect(() => {
+    loadReminders();
+  }, [loadReminders, refreshTrigger]);
+
+  // Función para marcar como leído y actualizar la vista
   const handleMarkAsRead = async (id: number) => {
-    setLoadingId(id);
-    
-    // Aquí iría la llamada real a tu API:
-    // await expenseService.markReminderAsRead(id);
-    
-    // Simulamos el delay de red y removemos el elemento de la lista
-    setTimeout(() => {
-      setReminders(reminders.filter(r => r.id !== id));
-      setLoadingId(null);
-    }, 600);
+    saveReadReminderId(id);
+    setReminders((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      if (onCountChange) onCountChange(next.length);
+      return next;
+    });
+
+    try {
+      await expenseService.markReminderAsRead(id, token);
+    } catch {
+      // Si el endpoint opcional aún no está desplegado en el servidor, se mantiene guardado localmente
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col items-center justify-center p-12 text-center">
+        <div className="w-8 h-8 border-2 border-brand-orange border-t-transparent rounded-full animate-spin mb-3"></div>
+        <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">
+          Revisando alertas de pagos próximos...
+        </span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-900/20 border border-red-500/40 text-red-400 p-4 rounded-2xl text-sm font-medium">
+        ⚠️ {error}
+      </div>
+    );
+  }
 
   if (reminders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full animate-fade-in text-gray-500">
-        <svg className="w-16 h-16 mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-        </svg>
-        <p className="text-lg font-medium text-gray-400">Todo al día</p>
-        <p className="text-sm">No tienes recordatorios de pago pendientes.</p>
+      <div className="flex-1 bg-[#121212] rounded-2xl border border-gray-800 flex flex-col items-center justify-center p-12 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-3xl mb-4">
+          🎉
+        </div>
+        <h3 className="text-xl font-extrabold text-white">¡Todo al día!</h3>
+        <p className="text-brand-text-muted text-sm mt-1 max-w-md">
+          No tienes recordatorios de pagos pendientes ni cuotas por vencer en los próximos días.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full w-full animate-fade-in">
-      
-      {/* Encabezado descriptivo de la sección */}
-      <div className="mb-4 flex justify-between items-end">
-        <p className="text-sm text-gray-400">
-          Mostrando las cuotas próximas a vencer (próximos 3 días) o ya vencidas.
-        </p>
+    <div className="flex flex-col h-full min-h-0 space-y-4">
+      <div className="bg-brand-orange/10 border border-brand-orange/30 rounded-2xl p-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-brand-orange text-black flex items-center justify-center font-extrabold">
+            🔔
+          </div>
+          <div>
+            <h4 className="text-sm font-extrabold text-white">
+              Alertas de Vencimiento Activas ({reminders.length})
+            </h4>
+            <p className="text-xs text-gray-300">
+              Se muestran los compromisos de pago que vencen en los próximos 3 días o que ya vencieron.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Contenedor de la Tabla */}
-      <div className="bg-[#1a1a1a] border border-gray-700 rounded-xl overflow-hidden flex-1 shadow-inner">
-        <div className="overflow-x-auto h-full">
-          <table className="w-full text-left text-sm text-gray-300 whitespace-nowrap">
-            
-            <thead className="bg-[#222222] text-gray-400 border-b border-gray-700 sticky top-0">
-              <tr>
-                <th className="px-6 py-4 font-medium">Proveedor</th>
-                <th className="px-6 py-4 font-medium">Detalle</th>
-                <th className="px-6 py-4 font-medium">Vence</th>
-                <th className="px-6 py-4 font-medium">Canal</th>
-                <th className="px-6 py-4 font-medium text-right">Acciones</th>
-              </tr>
-            </thead>
-            
-            <tbody className="divide-y divide-gray-800">
-              {reminders.map((reminder) => (
-                <tr key={reminder.id} className="hover:bg-[#252525] transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-200">
-                    {reminder.supplier}
-                  </td>
-                  
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-gray-300">{reminder.installmentDetails}</span>
-                      <span className="font-mono text-orange-400 font-bold">
-                        ${reminder.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+      {/* Lista de tarjetas de notificación */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+        {reminders.map((reminder) => {
+          const schedule = reminder.schedule;
+          const debt = schedule?.accountsPayable;
+          const supplierName = debt?.supplier?.name || (debt ? `Proveedor #${debt.supplierId}` : 'Proveedor');
+          const dueDateStr = schedule?.dueDate || schedule?.scheduleDate || reminder.remindAt;
+          const isOverdue = dueDateStr
+            ? new Date(dueDateStr) < new Date(new Date().setHours(0, 0, 0, 0))
+            : false;
+
+          return (
+            <div
+              key={reminder.id}
+              className={`bg-[#121212] border-l-4 ${
+                isOverdue ? 'border-l-red-500' : 'border-l-brand-orange'
+              } border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-[#1a1a1a] transition-colors shadow-md`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`p-3 rounded-2xl border ${
+                    isOverdue
+                      ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                      : 'bg-brand-orange/10 border-brand-orange/30 text-brand-orange'
+                  }`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-extrabold text-white text-base">{supplierName}</span>
+                    {schedule?.installmentNumber && (
+                      <span className="bg-gray-800 text-gray-300 border border-gray-700 text-xs px-2.5 py-0.5 rounded-lg font-bold">
+                        Cuota #{schedule.installmentNumber}
                       </span>
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className={`${reminder.isOverdue ? 'text-red-400 font-bold' : 'text-gray-300'}`}>
-                        {new Date(reminder.dueDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}
-                      </span>
-                      {reminder.isOverdue && (
-                         <span className="px-2 py-0.5 bg-red-900/40 border border-red-900/50 text-red-400 rounded-full text-[10px] uppercase font-bold tracking-wider">
-                           Vencido
-                         </span>
-                      )}
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 bg-[#2a2a2a] border border-gray-700 rounded text-xs text-gray-400">
-                      {reminder.channel}
-                    </span>
-                  </td>
-                  
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleMarkAsRead(reminder.id)}
-                      disabled={loadingId === reminder.id}
-                      className="bg-transparent border border-gray-600 hover:border-orange-500 text-gray-300 hover:text-orange-400 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 ml-auto"
+                    )}
+                    <span
+                      className={`text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg border ${
+                        isOverdue
+                          ? 'bg-red-900/30 text-red-400 border-red-500/30'
+                          : 'bg-brand-orange/15 text-brand-orange border-brand-orange/30'
+                      }`}
                     >
-                      {loadingId === reminder.id ? (
-                        <span className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></span>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                          Marcar leído
-                        </>
-                      )}
+                      {isOverdue ? 'Vencida' : 'Próxima a vencer'}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-300 text-sm font-medium mt-1">
+                    {debt?.concept || `Cuota programada #${reminder.scheduleId}`}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-xs">
+                    <span className={isOverdue ? 'text-red-400 font-bold' : 'text-brand-orange font-bold'}>
+                      📅 Fecha límite de cuota:{' '}
+                      {dueDateStr ? new Date(dueDateStr).toLocaleDateString('es-MX') : 'Sin fecha'}
+                    </span>
+                    {debt && (
+                      <span className="text-brand-text-muted">
+                        Saldo total de la deuda:{' '}
+                        <strong className="text-gray-200 font-mono">
+                          ${Number(debt.balance).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-gray-800 pt-3 sm:pt-0">
+                <div className="text-left sm:text-right">
+                  <span className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider block">
+                    Monto de Cuota
+                  </span>
+                  <span className="text-xl font-black text-white font-mono">
+                    ${Number(schedule?.amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {canAddExpense && debt && schedule && onPayReminder && (
+                    <button
+                      type="button"
+                      onClick={() => onPayReminder(debt, schedule)}
+                      className="px-4 py-2 rounded-xl bg-brand-orange hover:bg-orange-500 text-black font-extrabold text-xs transition-all shadow-[0_0_12px_rgba(255,90,0,0.25)] cursor-pointer"
+                    >
+                      Pagar Cuota
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            
-          </table>
-        </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleMarkAsRead(reminder.id)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-bold transition-colors border border-gray-700 cursor-pointer"
+                    title="Ocultar esta alerta"
+                  >
+                    <span>✓</span> Leído
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
-
-export default RemindersTable;
