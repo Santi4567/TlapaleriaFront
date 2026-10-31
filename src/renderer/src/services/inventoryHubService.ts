@@ -1,6 +1,7 @@
 // src/services/inventoryHubService.ts
 import * as signalR from '@microsoft/signalr';
 import { ApiResponse, StockReservationResult, StockUpdateNotification } from '../types/product';
+import { fetchWithAuth } from '../utils/fetchClient';
 
 const BASE_API = import.meta.env.VITE_API_URL;
 const HUB_URL = `${BASE_API}/hubs/inventory`;
@@ -26,6 +27,63 @@ class InventoryHubService {
     }
   }
 
+  private isTokenExpiringSoon(token: string | null): boolean {
+    if (!token) return true;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      if (!payloadBase64) return true;
+      const payload = JSON.parse(atob(payloadBase64));
+      if (!payload.exp) return false;
+      return payload.exp * 1000 <= Date.now() + 30000;
+    } catch {
+      return false;
+    }
+  }
+
+  private async getValidAccessToken(): Promise<string> {
+    if (this.currentToken && this.isTokenExpiringSoon(this.currentToken)) {
+      try {
+        await fetchWithAuth(`${BASE_API}/Users/profile`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${this.currentToken}`
+          }
+        });
+      } catch {
+        // Si el refresh falla, fetchWithAuth dispara 'auth-expired' automáticamente
+      }
+    }
+    return this.currentToken || '';
+  }
+
+  private buildHubConnection(transport?: signalR.HttpTransportType): signalR.HubConnection {
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(HUB_URL, {
+        accessTokenFactory: () => this.getValidAccessToken(),
+        withCredentials: false,
+        ...(transport ? { transport } : {})
+      })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    conn.on('StockUpdated', (raw: any) => {
+      const normalized: StockUpdateNotification = {
+        productId: raw.productId ?? raw.ProductId,
+        currentStock: raw.currentStock ?? raw.CurrentStock ?? 0,
+        reservedStock: raw.reservedStock ?? raw.ReservedStock ?? 0,
+        availableStock: raw.availableStock ?? raw.AvailableStock ?? 0
+      };
+      this.stockListeners.forEach((listener) => listener(normalized));
+    });
+
+    conn.onreconnected(() => {
+      this.reconnectListeners.forEach((listener) => listener());
+    });
+
+    return conn;
+  }
+
   async connect(token: string): Promise<void> {
     this.currentToken = token;
 
@@ -38,33 +96,18 @@ class InventoryHubService {
       }
     }
 
-    this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL, {
-        accessTokenFactory: () => this.currentToken || '',
-        withCredentials: false
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    this.connection.on('StockUpdated', (raw: any) => {
-      const normalized: StockUpdateNotification = {
-        productId: raw.productId ?? raw.ProductId,
-        currentStock: raw.currentStock ?? raw.CurrentStock ?? 0,
-        reservedStock: raw.reservedStock ?? raw.ReservedStock ?? 0,
-        availableStock: raw.availableStock ?? raw.AvailableStock ?? 0
-      };
-      this.stockListeners.forEach((listener) => listener(normalized));
-    });
-
-    this.connection.onreconnected(() => {
-      this.reconnectListeners.forEach((listener) => listener());
-    });
+    this.connection = this.buildHubConnection(signalR.HttpTransportType.WebSockets);
 
     this.startPromise = this.connection
       .start()
-      .catch((err) => {
-        console.warn('[InventoryHub] No se pudo iniciar la conexión en tiempo real:', err);
+      .catch(async () => {
+        // Fallback automático a SSE / LongPolling si el proxy aún no tiene Upgrade habilitado
+        this.connection = this.buildHubConnection(
+          signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling
+        );
+        await this.connection.start().catch((err) => {
+          console.warn('[InventoryHub] No se pudo iniciar la conexión en tiempo real:', err);
+        });
       })
       .finally(() => {
         this.startPromise = null;
