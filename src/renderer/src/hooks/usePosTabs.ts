@@ -1,7 +1,8 @@
 // src/hooks/usePosTabs.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext'; // 2.1 Separador de almacenamiento local entre usuarios
 import { SaleTab, CartItem, PaymentMethod } from '../types/pos';
+import { inventoryHubService } from '../services/inventoryHubService';
 
 const STORAGE_KEY = 'tlapaleria_leo_pos_tabs';
 const ACTIVE_TAB_KEY = 'tlapaleria_leo_active_tab';
@@ -9,9 +10,12 @@ const ACTIVE_TAB_KEY = 'tlapaleria_leo_active_tab';
 // 1. DEFINIMOS EL LÍMITE MÁXIMO DE CUENTAS SIMULTÁNEAS
 export const MAX_TABS = 10;
 
-export const usePosTabs = () => {
+export const usePosTabs = (onStockConflict?: (message: string) => void) => {
 
   const { user } = useAuth(); // 2.2. OBTENEMOS EL USUARIO ACTIVO
+  const syncedQuantitiesRef = useRef<Map<number, number>>(new Map());
+  const onStockConflictRef = useRef(onStockConflict);
+  onStockConflictRef.current = onStockConflict;
 
   // 2.3. LLAVE DINÁMICA: Si el usuario tiene ID 1, la llave será 'pos_tabs_user_1'
   const storageKey = `pos_tabs_user_${user?.id || 'guest'}`;
@@ -82,6 +86,134 @@ export const usePosTabs = () => {
   useEffect(() => {
     localStorage.setItem(ACTIVE_TAB_KEY, activeTabId);
   }, [activeTabId]);
+
+  // Sincroniza todas las presentaciones activas en pestañas de venta ('SALE') con SignalR
+  const syncReservationsWithHub = useCallback(async (currentTabs: SaleTab[], forceAll: boolean = false) => {
+    const desired = new Map<number, { quantity: number; stockFactor: number; allowFractions: boolean }>();
+
+    for (const tab of currentTabs) {
+      if (tab.type !== 'SALE') continue;
+      for (const item of tab.items) {
+        if (item.isInventoryTracked === false) continue;
+        const prev = desired.get(item.presentationId);
+        desired.set(item.presentationId, {
+          quantity: parseFloat(((prev?.quantity || 0) + item.quantity).toFixed(4)),
+          stockFactor: item.stockFactor,
+          allowFractions: item.allowFractions === true
+        });
+      }
+    }
+
+    if (forceAll) {
+      syncedQuantitiesRef.current.clear();
+    }
+
+    // 1. Liberar las presentaciones que ya no están en ninguna pestaña de venta
+    for (const [presId] of Array.from(syncedQuantitiesRef.current.entries())) {
+      if (!desired.has(presId)) {
+        syncedQuantitiesRef.current.delete(presId);
+        await inventoryHubService.removeItem(presId);
+      }
+    }
+
+    // 2. Actualizar las presentaciones cuya cantidad cambió
+    for (const [presId, info] of Array.from(desired.entries())) {
+      const lastQty = syncedQuantitiesRef.current.get(presId);
+      if (lastQty !== info.quantity) {
+        syncedQuantitiesRef.current.set(presId, info.quantity);
+        const res = await inventoryHubService.setItemQuantity(presId, info.quantity);
+
+        if (res && !res.success && res.data) {
+          onStockConflictRef.current?.(`⚠️ ${res.message}`);
+          const maxUnitsAvailable = info.allowFractions
+            ? parseFloat((res.data.availableStock / info.stockFactor).toFixed(2))
+            : Math.floor(res.data.availableStock / info.stockFactor);
+
+          const safeAllowed = Math.max(0, maxUnitsAvailable);
+          syncedQuantitiesRef.current.set(presId, safeAllowed);
+
+          setTabs((prev) =>
+            prev.map((tab) => {
+              if (tab.type !== 'SALE') return tab;
+              return {
+                ...tab,
+                items: tab.items
+                  .map((i) => (i.presentationId === presId ? { ...i, quantity: safeAllowed } : i))
+                  .filter((i) => i.quantity > 0)
+              };
+            })
+          );
+        }
+      }
+    }
+  }, []);
+
+  // Conectar al Hub de inventario y escuchar cambios de stock en tiempo real
+  useEffect(() => {
+    if (!user?.token) return;
+
+    let isMounted = true;
+
+    inventoryHubService.connect(user.token).then(() => {
+      if (isMounted) {
+        syncReservationsWithHub(tabs, true);
+      }
+    });
+
+    const unsubStock = inventoryHubService.onStockUpdated((update) => {
+      setTabs((prevTabs) => {
+        const myTotalBase = prevTabs
+          .filter((t) => t.type === 'SALE')
+          .flatMap((t) => t.items)
+          .filter((i) => i.productId === update.productId)
+          .reduce((sum, i) => sum + i.quantity * i.stockFactor, 0);
+
+        const reservedByOthers = Math.max(0, update.reservedStock - myTotalBase);
+
+        return prevTabs.map((tab) => {
+          const hasProduct = tab.items.some((i) => i.productId === update.productId);
+          if (!hasProduct) return tab;
+
+          return {
+            ...tab,
+            items: tab.items.map((item) => {
+              if (item.productId !== update.productId || item.isInventoryTracked === false) {
+                return item;
+              }
+              const otherItemsInMySaleTabsBase =
+                myTotalBase - (tab.type === 'SALE' ? item.quantity * item.stockFactor : 0);
+              const newMaxStock = Math.max(
+                0,
+                parseFloat((update.currentStock - reservedByOthers - otherItemsInMySaleTabsBase).toFixed(4))
+              );
+              return {
+                ...item,
+                maxStock: newMaxStock
+              };
+            })
+          };
+        });
+      });
+    });
+
+    const unsubReconnect = inventoryHubService.onReconnected(() => {
+      setTabs((currentTabs) => {
+        syncReservationsWithHub(currentTabs, true);
+        return currentTabs;
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      unsubStock();
+      unsubReconnect();
+    };
+  }, [user?.token, syncReservationsWithHub]);
+
+  useEffect(() => {
+    if (!user?.token) return;
+    syncReservationsWithHub(tabs);
+  }, [tabs, user?.token, syncReservationsWithHub]);
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
 
@@ -236,7 +368,11 @@ export const usePosTabs = () => {
 
       let updatedItems = [...tab.items];
       if (existingIndex > -1) {
-        updatedItems[existingIndex].quantity += qtyToAdd;
+        const currentItem = updatedItems[existingIndex];
+        updatedItems[existingIndex] = {
+          ...currentItem,
+          quantity: parseFloat((currentItem.quantity + qtyToAdd).toFixed(4))
+        };
       } else {
         updatedItems.push({ ...newItem, quantity: qtyToAdd });
       }
@@ -250,7 +386,7 @@ export const usePosTabs = () => {
         return { ...tab, items: tab.items.filter((_, i) => i !== index) };
       }
       const updated = [...tab.items];
-      updated[index].quantity = newQty;
+      updated[index] = { ...updated[index], quantity: newQty };
       return { ...tab, items: updated };
     });
   };

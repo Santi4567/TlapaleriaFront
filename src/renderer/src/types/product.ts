@@ -38,6 +38,8 @@ export interface Product {
   lastOrderDate?: string | null;
   unitOfMeasure: string;
   currentStock: number;
+  reservedStock?: number;
+  availableStock?: number;
   presentations: ProductPresentation[];
   isActive: boolean;
   isInventoryTracked?: boolean; // <--  ¿Se controla stock?
@@ -137,4 +139,22 @@ export interface PagedResponse<T> {
   totalItems: number;
   totalPages: number;
   currentPage: number;
+}
+
+export interface StockUpdateNotification {
+  productId: number;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
+}
+
+export interface StockReservationResult {
+  success: boolean;
+  message: string;
+  productId: number;
+  presentationId: number;
+  requestedQuantity: number;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
 }

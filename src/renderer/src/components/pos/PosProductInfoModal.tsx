@@ -78,10 +78,15 @@ useEffect(() => {
             <strong className="text-white text-base font-sans font-extrabold">{product.location || 'Sin asignar'}</strong>
           </div>
           <div>
-            <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Existencias Actuales:</span>
-            <strong className={`text-base font-sans font-black ${product.currentStock <= 0 ? 'text-red-500' : 'text-green-400'}`}>
-              {product.isInventoryTracked ? `${product.currentStock} ${product.unitOfMeasure}` : 'No Stockeable (N/S)'}
+            <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Disponible en Anaquel:</span>
+            <strong className={`text-base font-sans font-black ${(product.availableStock ?? product.currentStock) <= 0 ? 'text-red-500' : 'text-green-400'}`}>
+              {product.isInventoryTracked ? `${product.availableStock ?? product.currentStock} ${product.unitOfMeasure}` : 'No Stockeable (N/S)'}
             </strong>
+            {product.isInventoryTracked && (product.reservedStock ?? 0) > 0 && (
+              <span className="text-amber-400 text-xs font-mono font-bold block mt-1">
+                Apartado en cajas: {product.reservedStock} {product.unitOfMeasure} (Almacén: {product.currentStock})
+              </span>
+            )}
           </div>
         </div>
 

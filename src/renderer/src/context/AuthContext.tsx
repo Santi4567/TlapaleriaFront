@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { UserData, LoginRequest, ValidationErrorResponse } from '../types/auth';
 import { authService } from '../services/authService';
+import { inventoryHubService } from '../services/inventoryHubService';
 import { saveSecureToken, getSecureToken, deleteSecureToken } from '../utils/authStore';
 
 interface AuthContextType {
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleAuthExpired = (event: Event) => {
       const message = (event as CustomEvent<{ message?: string }>).detail?.message;
       console.warn('[AuthContext] 🚪 Sesión realmente expirada (refresh falló). Cerrando sesión...', message);
+      inventoryHubService.disconnect();
       setUser(null);
       setAuthError(message || 'Tu sesión expiró. Por favor, inicia sesión de nuevo.');
     };
@@ -128,6 +130,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error("[AuthContext] Error al notificar el logout al servidor:", error);
     } finally {
+      await inventoryHubService.disconnect();
+
       // 3. Destruirlo del disco duro de forma segura
       await deleteSecureToken(); 
       

@@ -5,6 +5,7 @@ import { usePosTabs, MAX_TABS } from '../hooks/usePosTabs';
 import { Product, ProductPresentation } from '../types/product';
 import { PaymentMethod } from '../types/pos';
 import { saleService } from '../services/saleService';
+import { inventoryHubService } from '../services/inventoryHubService';
 
 import PosTabBar from '../components/pos/PosTabBar';
 import PosSearchBar from '../components/pos/PosSearchBar';
@@ -44,7 +45,7 @@ const PosScreen: React.FC = () => {
     setClientName,
     setPaymentMethod,
     closeAllTabs
-  } = usePosTabs();
+  } = usePosTabs((msg) => showNotification(msg));
 
   // Referencias físicas (Para el atajo F3 y el escudo contra 100 pestañas)
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +81,34 @@ const PosScreen: React.FC = () => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  useEffect(() => {
+    const unsubscribe = inventoryHubService.onStockUpdated((update) => {
+      setSelectedProduct((prev) =>
+        prev && prev.id === update.productId
+          ? {
+              ...prev,
+              currentStock: update.currentStock,
+              reservedStock: update.reservedStock,
+              availableStock: update.availableStock
+            }
+          : prev
+      );
+
+      setInfoProduct((prev) =>
+        prev && prev.id === update.productId
+          ? {
+              ...prev,
+              currentStock: update.currentStock,
+              reservedStock: update.reservedStock,
+              availableStock: update.availableStock
+            }
+          : prev
+      );
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Manejador cuando se elige un producto desde el buscador o desde el modal de info
   const handleProductSelected = (prod: Product) => {
@@ -166,6 +195,13 @@ const PosScreen: React.FC = () => {
 
   const handleConfirmAdd = (qty: number) => {
     if (!selectedProduct || !selectedPresentation) return;
+
+    const existingInRow = activeTab.items.find(
+      (i) => i.productId === selectedProduct.id && i.presentationId === selectedPresentation.id
+    );
+    const existingBaseInRow = existingInRow ? existingInRow.quantity * existingInRow.stockFactor : 0;
+    const freeOnShelf = selectedProduct.availableStock ?? selectedProduct.currentStock;
+
     addItemToCart({
       productId: selectedProduct.id,
       presentationId: selectedPresentation.id,
@@ -175,7 +211,7 @@ const PosScreen: React.FC = () => {
       presentationName: selectedPresentation.name,
       unitPrice: selectedPresentation.price,
       stockFactor: selectedPresentation.stockFactor,
-      maxStock: selectedProduct.currentStock,
+      maxStock: freeOnShelf + existingBaseInRow,
       isInventoryTracked: selectedProduct.isInventoryTracked,
       allowFractions: selectedProduct.allowFractions,
       brand: selectedProduct.brand,
@@ -207,6 +243,7 @@ const PosScreen: React.FC = () => {
     const payload = {
       paymentMethod: API_PAYMENT_METHODS[activeTab.paymentMethod],
       paymentReference: referenceOrReceived.toString(),
+      connectionId: inventoryHubService.getConnectionId(),
       details: activeTab.items.map(item => ({
         presentationId: item.presentationId,
         quantity: item.quantity

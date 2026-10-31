@@ -16,6 +16,9 @@ const PosPresentationModal: React.FC<PosPresentationModalProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const mountTime = useRef(Date.now());
 
+  const effectiveStock = product.availableStock ?? product.currentStock;
+  const reservedStock = product.reservedStock ?? 0;
+
   // REGLA DE INVENTARIO Y FRACCIONES:
   const canSellPresentation = (pres: ProductPresentation) => {
     // 1. Si NO se rastrea inventario, siempre se puede vender libremente
@@ -25,9 +28,9 @@ const PosPresentationModal: React.FC<PosPresentationModalProps> = ({
     // - Si el empaque es cerrado (factor > 1), obligamos a que alcance para al menos 1 entero.
     // - Si es granel (factor <= 1), basta con tener existencias positivas (> 0).
     if (pres.stockFactor > 1) {
-      return product.currentStock >= pres.stockFactor;
+      return effectiveStock >= pres.stockFactor;
     }
-    return product.currentStock > 0;
+    return effectiveStock > 0;
   };
 
   useEffect(() => {
@@ -71,8 +74,13 @@ const PosPresentationModal: React.FC<PosPresentationModalProps> = ({
                   ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' 
                   : 'bg-gray-800 text-gray-200 border-gray-700'
               }`}>
-                {product.isInventoryTracked === false ? '♾️ Venta Libre (Sin stock)' : `Existencias: ${product.currentStock} ${product.unitOfMeasure}`}
+                {product.isInventoryTracked === false ? '♾️ Venta Libre (Sin stock)' : `En anaquel: ${effectiveStock} ${product.unitOfMeasure}`}
               </span>
+              {product.isInventoryTracked !== false && reservedStock > 0 && (
+                <span className="text-xs px-2.5 py-1 rounded-lg font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  En cajas: {reservedStock} {product.unitOfMeasure}
+                </span>
+              )}
             </div>
             <h3 className="text-3xl font-black text-white tracking-tight">{product.name}</h3>
           </div>
@@ -106,7 +114,7 @@ const PosPresentationModal: React.FC<PosPresentationModalProps> = ({
             // Si se rastrea, calculamos tope. Si no, le damos infinito (999999)
             const maxUnits = product.isInventoryTracked === false 
               ? 999999 
-              : parseFloat((product.currentStock / pres.stockFactor).toFixed(2));
+              : parseFloat((effectiveStock / pres.stockFactor).toFixed(2));
 
             return (
               <div
@@ -144,7 +152,7 @@ const PosPresentationModal: React.FC<PosPresentationModalProps> = ({
                     
                     {!canSell ? (
                       <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-xs font-black border border-red-500/30">
-                        🚫 Req. {pres.stockFactor} / Hay {product.currentStock}
+                        🚫 Req. {pres.stockFactor} / Hay {effectiveStock} en anaquel
                       </span>
                     ) : product.isInventoryTracked === false ? (
                       <span className={`text-xs ${isSelected ? 'text-black font-extrabold' : 'text-blue-400'}`}>

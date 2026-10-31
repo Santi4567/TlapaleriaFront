@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { productService } from '../services/productService';
+import { inventoryHubService } from '../services/inventoryHubService';
 import { Product } from '../types/product';
 
 export const usePosSearch = (
@@ -32,6 +33,25 @@ export const usePosSearch = (
 
     return () => clearTimeout(delaySearch);
   }, [searchTerm, user?.token]);
+
+  useEffect(() => {
+    const unsubscribe = inventoryHubService.onStockUpdated((update) => {
+      setResults((prev) =>
+        prev.map((prod) =>
+          prod.id === update.productId
+            ? {
+                ...prod,
+                currentStock: update.currentStock,
+                reservedStock: update.reservedStock,
+                availableStock: update.availableStock
+              }
+            : prod
+        )
+      );
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleSelect = (product: Product) => {
     onSelectProduct(product);

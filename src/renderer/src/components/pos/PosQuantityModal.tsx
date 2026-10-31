@@ -20,6 +20,8 @@ const PosQuantityModal: React.FC<PosQuantityModalProps> = ({
 
   const allowFractions = product.allowFractions !== false; // Por defecto true si es undefined
   const isTracked = product.isInventoryTracked !== false;  // Por defecto true si es undefined
+  const effectiveStock = product.availableStock ?? product.currentStock;
+  const reservedStock = product.reservedStock ?? 0;
 
   // ============================================================================
   // CÁLCULOS DINÁMICOS SEGÚN REGLAS DEL PRODUCTO
@@ -31,13 +33,13 @@ const PosQuantityModal: React.FC<PosQuantityModalProps> = ({
   const totalStockNeeded = parseFloat((safeQty * presentation.stockFactor).toFixed(4));
   
   // 2. Máximo vendible (Si no se rastrea, el máximo es infinito 999999)
-  const rawMax = isTracked ? (product.currentStock / presentation.stockFactor) : 999999;
+  const rawMax = isTracked ? (effectiveStock / presentation.stockFactor) : 999999;
   const maxAllowedUnits = allowFractions ? parseFloat(rawMax.toFixed(2)) : Math.floor(rawMax);
   
   // 3. Validaciones estandarizadas
   const isPositive = safeQty > 0;
   const isIntegerValid = allowFractions ? true : Number.isInteger(safeQty);
-  const hasEnoughStock = !isTracked || (totalStockNeeded <= (product.currentStock + 0.0001));
+  const hasEnoughStock = !isTracked || (totalStockNeeded <= (effectiveStock + 0.0001));
   
   const isValid = isPositive && isIntegerValid && hasEnoughStock && safeQty <= maxAllowedUnits;
 
@@ -107,10 +109,15 @@ const PosQuantityModal: React.FC<PosQuantityModalProps> = ({
         {/* INDICADOR DE EXISTENCIAS */}
         <div className="bg-black/60 p-4 rounded-2xl border border-gray-800 flex items-center justify-between font-mono text-xs">
           <div className="text-left">
-            <span className="text-gray-500 block uppercase">Existencias almacén:</span>
+            <span className="text-gray-500 block uppercase">Disponible en anaquel:</span>
             <strong className="text-white text-sm font-bold">
-              {isTracked ? `${product.currentStock} ${product.unitOfMeasure}` : 'N/A (Venta Libre)'}
+              {isTracked ? `${effectiveStock} ${product.unitOfMeasure}` : 'N/A (Venta Libre)'}
             </strong>
+            {isTracked && reservedStock > 0 && (
+              <span className="text-amber-400 text-[11px] font-bold block mt-0.5">
+                En cajas: {reservedStock} {product.unitOfMeasure} (Almacén: {product.currentStock})
+              </span>
+            )}
           </div>
           <div className="text-right border-l border-gray-800 pl-4">
             <span className="text-gray-500 block uppercase">Máximo vendible aquí:</span>

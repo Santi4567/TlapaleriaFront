@@ -174,9 +174,14 @@ const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
 
                     <p className="text-xs text-gray-400 font-mono truncate">
                       Ubic: <strong className="text-gray-200">{prod.location || '—'}</strong> | Stock:{' '}
-                      <strong className="text-brand-orange">
-                        {prod.currentStock} {prod.unitOfMeasure}
+                      <strong className={(prod.availableStock ?? prod.currentStock) <= 0 && prod.isInventoryTracked !== false ? 'text-red-500' : 'text-brand-orange'}>
+                        {prod.isInventoryTracked === false ? 'Venta Libre' : `${prod.availableStock ?? prod.currentStock} ${prod.unitOfMeasure}`}
                       </strong>
+                      {prod.isInventoryTracked !== false && (prod.reservedStock ?? 0) > 0 && (
+                        <span className="text-amber-400 font-bold ml-1.5">
+                          (En cajas: {prod.reservedStock} {prod.unitOfMeasure})
+                        </span>
+                      )}
                       {!prod.brand && (
                         <>
                           {' '}| Marca: <strong className="text-gray-500">S/M</strong>
