@@ -1,7 +1,4 @@
 // src/types/report.ts
-//import { ApiResponse } from './product'; // Reutilizamos ApiResponse si ya lo tienes ahí
-
-// src/types/report.ts
 
 export interface PresentationHistoryInfo {
   presentationId: number;
@@ -23,7 +20,7 @@ export interface ProductPriceHistory {
   actual: boolean;
 }
 
-// --- NUEVO: Tipos para el Reporte de Ventas por Proveedor ---
+// --- Tipos para el Reporte de Ventas por Proveedor ---
 export enum SupplierReportPeriod {
   CustomRange = 0,
   Day = 1,
@@ -51,3 +48,34 @@ export interface SupplierSalesReportResponse {
   suppliers: SupplierSalesReportItem[];
 }
 
+// --- Desglose de productos/presentaciones vendidos de un proveedor ---
+export interface SupplierProductSalesItem {
+  productId: number;
+  presentationId: number;
+  internalCode: string;
+  productName: string;
+  presentationName: string;
+  brand?: string | null;
+  effectiveTickets: number;
+  quantitySold: number;
+  quantityReturned: number;
+  netQuantity: number;
+  unitSupplierCost: number;
+  unitPublicPrice: number;
+  supplierAmount: number;
+  totalChargedClient: number;
+  profitAmount: number;
+}
+
+export interface SupplierSalesDetailResponse {
+  supplierId: number;
+  supplierName: string;
+  startDate: string | null;
+  endDate: string | null;
+  effectiveTickets: number;
+  totalNetQuantity: number;
+  totalSupplierAmount: number;
+  totalChargedClient: number;
+  totalProfitAmount: number;
+  products: SupplierProductSalesItem[];
+}

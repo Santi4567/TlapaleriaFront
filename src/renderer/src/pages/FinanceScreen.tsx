@@ -12,6 +12,7 @@ import FinanceChart from '../components/finance/FinanceChart';
 import FinancePeriodSelector, { FinanceFilterParams } from '../components/finance/FinancePeriodSelector';
 import SupplierPeriodSelector, { SupplierFilterParams } from '../components/finance/SupplierPeriodSelector';
 import SupplierSalesSection from '../components/finance/SupplierSalesSection';
+import FinanceMovementsSection from '../components/finance/FinanceMovementsSection';
 
 type FinanceTab = 'general' | 'suppliers';
 
@@ -194,9 +195,10 @@ const FinanceScreen: React.FC = () => {
           <div className="animate-fade-in-up">
             <FinanceSummaryCards data={reportData} />
             <FinanceChart data={reportData.chartData} periodType={generalFilter.periodType} />
+            <FinanceMovementsSection data={reportData} />
           </div>
         ) : activeTab === 'suppliers' && supplierReportData ? (
-          <SupplierSalesSection data={supplierReportData} />
+          <SupplierSalesSection data={supplierReportData} filter={supplierFilter} />
         ) : null}
       </div>
 

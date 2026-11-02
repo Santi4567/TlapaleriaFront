@@ -24,6 +24,7 @@ import PosClearConfirmModal from '../components/pos/PosClearConfirmModal';
 import PosProductInfoModal from '../components/pos/PosProductInfoModal';
 import PosCloseAllConfirmModal from '../components/pos/PosCloseAllConfirmModal';
 import PosTabLimitModal from '../components/pos/PosTabLimitModal';
+import PosReturnModal from '../components/pos/PosReturnModal';
 
 type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'SUCCESS';
 
@@ -61,6 +62,14 @@ const PosScreen: React.FC = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [showCloseAllModal, setShowCloseAllModal] = useState(false);
   const [showTabLimitModal, setShowTabLimitModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+
+  // Permiso para generar devoluciones desde la caja
+  const canAddReturns = (() => {
+    const userPerms = (user as any)?.permisos;
+    if (!userPerms) return true;
+    return userPerms['RETURNS']?.includes('add.returns') || false;
+  })();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('NONE');
   
   // Estados para la API de Ventas
@@ -158,7 +167,14 @@ const PosScreen: React.FC = () => {
       }
 
       // Ignorar el resto de atajos si hay un modal crítico abierto
-      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || showTabLimitModal || selectedProduct || infoProduct) return;
+      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || showTabLimitModal || showReturnModal || selectedProduct || infoProduct) return;
+
+      // ACCESO RÁPIDO A DEVOLUCIONES [F10]
+      if (e.key === 'F10') {
+        e.preventDefault();
+        if (canAddReturns) setShowReturnModal(true);
+        return;
+      }
 
       if (e.key === 'F1') {
         e.preventDefault();
@@ -191,7 +207,7 @@ const PosScreen: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, showTabLimitModal, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
+  }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, showTabLimitModal, showReturnModal, canAddReturns, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
 
   const handleConfirmAdd = (qty: number) => {
     if (!selectedProduct || !selectedPresentation) return;
@@ -292,6 +308,7 @@ const PosScreen: React.FC = () => {
         onReorderTabs={reorderTabs}
         onClearTable={() => setShowClearModal(true)}
         onCloseAll={() => setShowCloseAllModal(true)}
+        onOpenReturns={canAddReturns ? () => setShowReturnModal(true) : undefined}
         hasItems={activeTab.items.length > 0}
       />
 
@@ -408,6 +425,7 @@ const PosScreen: React.FC = () => {
         />
       )}
       
+      {showReturnModal && <PosReturnModal onClose={() => setShowReturnModal(false)} />}
       {/* MODAL DE ADVERTENCIA DE LÍMITE DE PESTAÑAS */}
       {showTabLimitModal && (
         <PosTabLimitModal

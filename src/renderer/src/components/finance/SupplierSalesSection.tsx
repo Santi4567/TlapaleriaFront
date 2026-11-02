@@ -1,14 +1,45 @@
 // src/components/finance/SupplierSalesSection.tsx
-import React, { useState } from 'react';
-import { Truck, DollarSign, Award, Receipt, Search, PackageCheck } from 'lucide-react';
-import { SupplierSalesReportResponse } from '../../types/report';
+import React, { useState, useEffect } from 'react';
+import {
+  Truck,
+  DollarSign,
+  Award,
+  Receipt,
+  Search,
+  PackageCheck,
+  Eye,
+} from 'lucide-react';
+import {
+  SupplierSalesDetailResponse,
+  SupplierSalesReportItem,
+  SupplierSalesReportResponse,
+} from '../../types/report';
+import { SupplierFilterParams } from './SupplierPeriodSelector';
+import { reportService } from '../../services/reportService';
+import { useAuth } from '../../context/AuthContext';
+import SupplierSalesDetailModal from './SupplierSalesDetailModal';
 
 interface SupplierSalesSectionProps {
   data: SupplierSalesReportResponse;
+  filter: SupplierFilterParams;
 }
 
-const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => {
+const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data, filter }) => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Control del modal de desglose y caché por proveedor para el filtro actual
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierSalesReportItem | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<number | null>(null);
+  const [detailsBySupplier, setDetailsBySupplier] = useState<Record<number, SupplierSalesDetailResponse>>({});
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Al cambiar los datos del reporte (nuevo rango de fechas), limpiar caché
+  useEffect(() => {
+    setSelectedSupplier(null);
+    setDetailsBySupplier({});
+    setDetailError(null);
+  }, [data]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
@@ -16,6 +47,41 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
   const filteredSuppliers = data.suppliers.filter((s) =>
     s.supplierName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const fetchSupplierDetail = async (supplier: SupplierSalesReportItem, forceReload = false) => {
+    if (!forceReload && detailsBySupplier[supplier.supplierId]) {
+      return;
+    }
+
+    if (!user?.token) return;
+
+    setLoadingDetailId(supplier.supplierId);
+    setDetailError(null);
+
+    const res = await reportService.getSupplierSalesDetail(
+      user.token,
+      supplier.supplierId,
+      filter.periodType,
+      filter.startDate,
+      filter.endDate
+    );
+
+    if (res && res.success && res.data) {
+      setDetailsBySupplier((prev) => ({
+        ...prev,
+        [supplier.supplierId]: res.data,
+      }));
+    } else {
+      setDetailError(res?.message || 'No se pudo cargar el desglose de productos vendidos.');
+    }
+
+    setLoadingDetailId(null);
+  };
+
+  const handleOpenSupplierDetail = (supplier: SupplierSalesReportItem) => {
+    setSelectedSupplier(supplier);
+    fetchSupplierDetail(supplier);
+  };
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in-up">
@@ -86,7 +152,7 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
               Desglose por Proveedor ({filteredSuppliers.length})
             </h3>
             <p className="text-gray-400 text-sm mt-0.5">
-              Separa en sobres o cuentas el monto indicado en la columna "Apartar a Proveedor".
+              Selecciona cualquier proveedor para inspeccionar todos los productos que sumaron ese monto.
             </p>
           </div>
 
@@ -121,6 +187,7 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
                   <th className="py-3.5 px-4 font-semibold text-right">Cobrado al Cliente</th>
                   <th className="py-3.5 px-4 font-semibold text-right text-orange-400">Tu Ganancia</th>
                   <th className="py-3.5 px-4 font-semibold text-right">Margen</th>
+                  <th className="py-3.5 px-4 font-semibold text-center">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 text-sm">
@@ -133,7 +200,8 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
                   return (
                     <tr
                       key={sup.supplierId}
-                      className="hover:bg-white/[0.02] transition-colors group"
+                      onClick={() => handleOpenSupplierDetail(sup)}
+                      className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                     >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
@@ -172,6 +240,23 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
                           {marginPercent}%
                         </span>
                       </td>
+
+                      <td
+                        className="py-4 px-4 text-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenSupplierDetail(sup);
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSupplierDetail(sup)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-800/90 hover:bg-orange-500 text-gray-200 hover:text-white border border-gray-700 hover:border-orange-500 font-bold text-xs transition-all cursor-pointer shadow-sm"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Ver desglose
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -195,13 +280,32 @@ const SupplierSalesSection: React.FC<SupplierSalesSectionProps> = ({ data }) => 
                       filteredSuppliers.reduce((acc, x) => acc + x.profitAmount, 0)
                     )}
                   </td>
-                  <td className="py-4 px-4 rounded-br-xl"></td>
+                  <td colSpan={2} className="py-4 px-4 rounded-br-xl"></td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
       </div>
+
+      {/* Modal de Alto Rendimiento para el Desglose de Productos del Proveedor */}
+      <SupplierSalesDetailModal
+        isOpen={Boolean(selectedSupplier)}
+        supplierSummary={selectedSupplier}
+        detail={selectedSupplier ? detailsBySupplier[selectedSupplier.supplierId] ?? null : null}
+        isLoading={
+          Boolean(selectedSupplier) &&
+          loadingDetailId === selectedSupplier?.supplierId &&
+          !detailsBySupplier[selectedSupplier.supplierId]
+        }
+        error={detailError}
+        onClose={() => setSelectedSupplier(null)}
+        onRetry={() => {
+          if (selectedSupplier) {
+            fetchSupplierDetail(selectedSupplier, true);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -13,6 +13,7 @@ import SuppliersScreen from '../pages/SuppliersScreen';
 import PendingOrdersScreen from '../pages/PendingOrdersScreen';
 import InventoryScreen from '../pages/InventoryScreen';
 import FinanceScreen from '../pages/FinanceScreen';
+import ReturnsScreen from '../pages/ReturnsScreen';
 import ExpensesScreen from "../pages/ExpensesScreen";
 import UserScreen from '../pages/UserScreen';
 import UserManagementScreen from '../pages/UserManagementScreen';
@@ -46,6 +47,7 @@ const MainLayout: React.FC = () => {
       case 'PENDING': return <PendingOrdersScreen />;
       case 'INVENTORY': return <InventoryScreen />;
       case 'FINANCE': return <FinanceScreen />;
+      case 'RETURNS': return <ReturnsScreen />;
       case 'USER': return <UserScreen onLogout={handleLogout} />;
       case 'USER_MANAGEMENT': return <UserManagementScreen />;
       case 'ROL': return <RoleManagementScreen />;

@@ -3,6 +3,7 @@ import { ApiResponse } from '../types/product';
 import { 
   ProductPriceHistory, 
   SupplierReportPeriod, 
+  SupplierSalesDetailResponse, 
   SupplierSalesReportResponse 
 } from '../types/report';
 import { fetchWithAuth } from '../utils/fetchClient';
@@ -77,6 +78,42 @@ export const reportService = {
       return await response.json();
     } catch (error) {
       console.error('Error al obtener el reporte de ventas por proveedor:', error);
+      return null;
+    }
+  },
+
+  // --- Obtener desglose de productos vendidos de un proveedor específico ---
+  async getSupplierSalesDetail(
+    token: string,
+    supplierId: number,
+    periodType: SupplierReportPeriod = SupplierReportPeriod.AllTime,
+    startDate?: string,
+    endDate?: string
+  ): Promise<ApiResponse<SupplierSalesDetailResponse> | null> {
+    try {
+      const params = new URLSearchParams();
+      params.append('periodType', periodType.toString());
+
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const url = `${API_URL}/suppliers-sales/${supplierId}?${params.toString()}`;
+
+      const response = await fetchWithAuth(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error al obtener el desglose de ventas del proveedor:', error);
       return null;
     }
   }

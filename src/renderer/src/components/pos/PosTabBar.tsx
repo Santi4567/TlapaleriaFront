@@ -11,6 +11,7 @@ interface PosTabBarProps {
   onReorderTabs: (draggedId: string, targetId: string) => void;
   onClearTable: () => void;
   onCloseAll: () => void;
+  onOpenReturns?: () => void;
   hasItems: boolean;
 }
 
@@ -23,6 +24,7 @@ const PosTabBar: React.FC<PosTabBarProps> = ({
   onReorderTabs,
   onClearTable,
   onCloseAll,
+  onOpenReturns,
   hasItems
 }) => {
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
@@ -112,6 +114,21 @@ const PosTabBar: React.FC<PosTabBarProps> = ({
           <span>✕ Cerrar Todas ({tabs.length})</span>
         </button>
         
+        {/* BOTÓN DEVOLUCIONES [F10] */}
+        {onOpenReturns && (
+          <button
+            type="button"
+            onClick={onOpenReturns}
+            className="px-4 py-3 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-extrabold text-sm rounded-2xl border-2 border-sky-500/30 transition-all flex items-center space-x-2.5 shadow-sm"
+            title="Buscar ticket por folio y generar devolución [F10]"
+          >
+            <span className="text-base">↩️ Devolución</span>
+            <kbd className="bg-black/60 text-sky-400 px-2 py-1 rounded-lg text-xs font-mono font-black border border-sky-500/40 shadow-inner">
+              F10
+            </kbd>
+          </button>
+        )}
+
         {/* BOTÓN LIMPIAR [F4] */}
         <button
           type="button"
