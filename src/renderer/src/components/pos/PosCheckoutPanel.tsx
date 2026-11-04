@@ -1,5 +1,6 @@
 // src/components/pos/PosCheckoutPanel.tsx
 import React from 'react';
+import { getDiscountAmount, getGrossSum, getNetTotal } from '../../utils/discount';
 import { SaleTab } from '../../types/pos';
 
 interface PosCheckoutPanelProps {
@@ -8,6 +9,8 @@ interface PosCheckoutPanelProps {
   onProcessSale: () => void;
   onPrintQuote: () => void;
   onRequestSwitch: () => void;
+  canApplyDiscount?: boolean;
+  onOpenDiscountModal?: () => void;
 }
 
 const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
@@ -15,7 +18,9 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
   onClientChange,
   onProcessSale,
   onPrintQuote,
-  onRequestSwitch
+  onRequestSwitch,
+  canApplyDiscount = false,
+  onOpenDiscountModal
 }) => {
   const isQuote = activeTab.type === 'QUOTE';
 
@@ -23,18 +28,20 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
   const totalItems = activeTab.items.reduce((acc, i) => acc + i.quantity, 0);
   
   // Suma bruta de precios con IVA incluido menos descuento
-  const grossSum = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
-  const total = Math.max(0, grossSum - (activeTab.discount || 0));
+  const grossSum = getGrossSum(activeTab);
+  const discountAmount = getDiscountAmount(activeTab);
+  const total = getNetTotal(activeTab);
+  const hasDiscount = discountAmount > 0;
 
   // Extracción matemática del IVA (El producto ya lo trae dentro)
   const subtotal = total / 1.16;
   const iva = total - subtotal;
 
   return (
-    <div className="w-full xl:w-96 bg-[#121212] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between flex-shrink-0 shadow-xl">
+    <div className="w-full xl:w-96 bg-[#121212] rounded-3xl p-5 border border-gray-800 flex flex-col justify-between flex-shrink-0 shadow-xl">
       
       {/* SECCIÓN SUPERIOR: CLIENTE Y TIPO */}
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Tipo de Documento</span>
           <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
@@ -53,17 +60,66 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
             value={activeTab.clientName}
             onChange={(e) => onClientChange(e.target.value)}
             placeholder="Ej. Público en General, Arq. Gómez"
-            className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-brand-orange transition-all"
+            className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl px-3.5 py-2 text-sm font-bold focus:outline-none focus:border-brand-orange transition-all"
           />
         </div>
       </div>
 
-      {/* SECCIÓN INTERMEDIA: DESGLOSE CON IVA INCLUIDO */}
-      <div className="my-4 space-y-2.5 bg-black/40 p-4 rounded-2xl border border-gray-800/80 font-mono">
+      {/* SECCIÓN INTERMEDIA: DESGLOSE CON IVA INCLUIDO Y DESCUENTO INTEGRADO */}
+      <div className="my-3 space-y-2 bg-black/40 p-3.5 rounded-2xl border border-gray-800/80 font-mono">
         <div className="flex justify-between text-xs text-gray-400">
           <span>Artículos Totales:</span>
           <span className="font-bold text-white">{totalItems}</span>
         </div>
+
+        {hasDiscount && (
+          <div className="flex justify-between text-xs text-gray-400">
+            <span>Total de Lista:</span>
+            <span>${grossSum.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        )}
+
+        {/* FILA DE DESCUENTO DISCRETA E INTEGRADA */}
+        {!isQuote && canApplyDiscount && (
+          <div className={`flex justify-between items-center text-xs transition-colors ${
+            hasDiscount
+              ? 'text-emerald-400 font-bold bg-emerald-500/10 -mx-1.5 px-2 py-1 rounded-lg border border-emerald-500/30'
+              : 'text-gray-400'
+          }`}>
+            <span className="flex items-center gap-1.5">
+              <span>🏷️</span>
+              <span>Descuento{(activeTab.discountPercent || 0) > 0 ? ` (${activeTab.discountPercent}%)` : ''}:</span>
+            </span>
+
+            {hasDiscount ? (
+              <button
+                type="button"
+                onClick={onOpenDiscountModal}
+                className="hover:underline cursor-pointer flex items-center gap-1.5 text-emerald-400 font-mono"
+                title="Modificar o quitar descuento [F7]"
+              >
+                <span>-${discountAmount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <kbd className="bg-emerald-950/80 text-emerald-300 text-[10px] px-1 py-0.5 rounded border border-emerald-700/60 font-mono font-bold">
+                  F7
+                </kbd>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenDiscountModal}
+                disabled={activeTab.items.length === 0}
+                className="text-gray-400 hover:text-brand-orange transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group font-sans"
+                title="Aplicar descuento especial al ticket [F7]"
+              >
+                <span className="text-xs font-semibold group-hover:underline">Agregar</span>
+                <kbd className="bg-black/60 text-gray-400 group-hover:text-brand-orange group-hover:border-brand-orange/40 text-[10px] px-1.5 py-0.5 rounded border border-gray-700 font-mono font-bold transition-colors">
+                  + F7
+                </kbd>
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex justify-between text-xs text-gray-400">
           <span>Subtotal (Neto):</span>
           <span>${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -73,7 +129,7 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
           <span>${iva.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         
-        <div className="border-t border-gray-800 pt-2.5 flex justify-between items-baseline">
+        <div className="border-t border-gray-800 pt-2 flex justify-between items-baseline">
           <span className="font-sans font-black text-white text-base uppercase tracking-wider">Total:</span>
           <span className={`text-2xl font-black ${isQuote ? 'text-purple-400' : 'text-brand-orange'}`}>
             ${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -81,15 +137,15 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
         </div>
       </div>
 
-      {/* SECCIÓN INFERIOR: BOTONES */}
-      <div className="space-y-3 pt-2">
+      {/* SECCIÓN INFERIOR: BOTONES ORIGINALES SIN DESBORDARSE */}
+      <div className="space-y-2.5 pt-1">
         {isQuote ? (
           <>
             <button
               type="button"
               onClick={onPrintQuote}
               disabled={activeTab.items.length === 0}
-              className="w-full py-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-base rounded-2xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.3)] flex items-center justify-center space-x-2"
+              className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm rounded-2xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.3)] flex items-center justify-center space-x-2"
             >
               <span>🖨️ Guardar e Imprimir Cotización</span>
             </button>
@@ -98,7 +154,7 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
               type="button"
               onClick={onRequestSwitch}
               disabled={activeTab.items.length === 0}
-              className="w-full py-3.5 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-black disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-sm rounded-xl border border-brand-orange/30 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-2.5 bg-brand-orange/10 hover:bg-brand-orange text-brand-orange hover:text-black disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xs rounded-xl border border-brand-orange/30 transition-all flex items-center justify-center space-x-2"
             >
               <span>⚡ Pasar a Venta Directa (Cobrar)</span>
             </button>
@@ -110,7 +166,7 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
               onClick={onProcessSale}
               disabled={activeTab.items.length === 0}
               title="Procesar cobro del ticket actual [Teclado: F8 o F12]"
-              className="w-full py-4 bg-brand-orange hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-lg rounded-2xl transition-all shadow-[0_0_25px_rgba(255,90,0,0.3)] flex items-center justify-center space-x-3 group border-2 border-brand-orange"
+              className="w-full py-3.5 bg-brand-orange hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-base rounded-2xl transition-all shadow-[0_0_25px_rgba(255,90,0,0.3)] flex items-center justify-center space-x-3 group border-2 border-brand-orange"
             >
               <span>💰 Cobrar Ahora</span>
               <kbd className="bg-black/80 text-brand-orange group-hover:bg-black group-hover:text-brand-orange px-2.5 py-1 rounded-lg font-mono text-xs font-black shadow-inner border border-brand-orange/40">
@@ -122,7 +178,7 @@ const PosCheckoutPanel: React.FC<PosCheckoutPanelProps> = ({
               type="button"
               onClick={onRequestSwitch}
               disabled={activeTab.items.length === 0}
-              className="w-full py-3 bg-purple-500/10 hover:bg-purple-600 text-purple-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xs rounded-xl border border-purple-500/30 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-2.5 bg-purple-500/10 hover:bg-purple-600 text-purple-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xs rounded-xl border border-purple-500/30 transition-all flex items-center justify-center space-x-2"
             >
               <span>📋 Convertir a Presupuesto (Cotizar)</span>
             </button>

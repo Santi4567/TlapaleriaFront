@@ -29,6 +29,7 @@ export interface SaleTab {
   clientName: string;
   paymentMethod: PaymentMethod; // NUEVO: Método de pago seleccionado
   items: CartItem[];
-  discount: number;
+  discount: number; // Descuento en pesos (monto fijo)
+  discountPercent?: number; // Descuento en porcentaje (0-100). Si > 0 tiene prioridad sobre `discount`
   createdAt: number;
 }

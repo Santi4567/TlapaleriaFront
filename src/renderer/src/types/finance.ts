@@ -95,6 +95,7 @@ export interface SaleTicketDetailLine {
   stockFactorApplied: number;
   unitPrice: number;
   subtotal: number;
+  discountAmount?: number;
   supplierPriceAtSale: number;
   supplierCostSubtotal: number;
   isActive: boolean;
@@ -104,6 +105,8 @@ export interface SaleTicketDetail {
   id: number;
   folio: string;
   totalAmount: number;
+  discountPercent?: number;
+  discountAmount?: number;
   paymentMethod: string;
   paymentReference?: string | null;
   userId: number;

@@ -5,6 +5,7 @@ import { usePosTabs, MAX_TABS } from '../hooks/usePosTabs';
 import { Product, ProductPresentation } from '../types/product';
 import { PaymentMethod } from '../types/pos';
 import { saleService } from '../services/saleService';
+import { getDiscountAmount, getGrossSum, getNetTotal } from '../utils/discount';
 import { inventoryHubService } from '../services/inventoryHubService';
 
 import PosTabBar from '../components/pos/PosTabBar';
@@ -25,6 +26,7 @@ import PosProductInfoModal from '../components/pos/PosProductInfoModal';
 import PosCloseAllConfirmModal from '../components/pos/PosCloseAllConfirmModal';
 import PosTabLimitModal from '../components/pos/PosTabLimitModal';
 import PosReturnModal from '../components/pos/PosReturnModal';
+import PosDiscountModal from '../components/pos/PosDiscountModal';
 
 type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'SUCCESS';
 
@@ -45,6 +47,7 @@ const PosScreen: React.FC = () => {
     clearActiveTabItems,
     setClientName,
     setPaymentMethod,
+    setDiscount,
     closeAllTabs
   } = usePosTabs((msg) => showNotification(msg));
 
@@ -63,12 +66,21 @@ const PosScreen: React.FC = () => {
   const [showCloseAllModal, setShowCloseAllModal] = useState(false);
   const [showTabLimitModal, setShowTabLimitModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   // Permiso para generar devoluciones desde la caja
   const canAddReturns = (() => {
     const userPerms = (user as any)?.permisos;
     if (!userPerms) return true;
     return userPerms['RETURNS']?.includes('add.returns') || false;
+  })();
+  // Permiso para aplicar descuentos (clientes/familiares)
+  const canApplyDiscount = (() => {
+    const userPerms = (user as any)?.permisos;
+    if (!userPerms) return true;
+    return Object.values(userPerms as Record<string, string[]>).some(
+      (perms) => Array.isArray(perms) && perms.includes('apply.discounts')
+    );
   })();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('NONE');
   
@@ -167,7 +179,7 @@ const PosScreen: React.FC = () => {
       }
 
       // Ignorar el resto de atajos si hay un modal crítico abierto
-      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || showTabLimitModal || showReturnModal || selectedProduct || infoProduct) return;
+      if (checkoutStep !== 'NONE' || showSwitchModal || showClearModal || showCloseAllModal || showTabLimitModal || showReturnModal || showDiscountModal || selectedProduct || infoProduct) return;
 
       // ACCESO RÁPIDO A DEVOLUCIONES [F10]
       if (e.key === 'F10') {
@@ -197,6 +209,11 @@ const PosScreen: React.FC = () => {
         if (activeTab.items.length > 0) {
           setShowClearModal(true);
         }
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        if (canApplyDiscount && activeTab.type === 'SALE' && activeTab.items.length > 0) {
+          setShowDiscountModal(true);
+        }
       } else if (e.key === 'F8' || e.key === 'F12') {
         e.preventDefault();
         if (activeTab.type === 'SALE' && activeTab.items.length > 0) {
@@ -207,7 +224,7 @@ const PosScreen: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, showTabLimitModal, showReturnModal, canAddReturns, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
+  }, [checkoutStep, showSwitchModal, showClearModal, showCloseAllModal, showTabLimitModal, showReturnModal, showDiscountModal, canAddReturns, canApplyDiscount, selectedProduct, infoProduct, activeTab.items.length, activeTab.type, createNewTab]);
 
   const handleConfirmAdd = (qty: number) => {
     if (!selectedProduct || !selectedPresentation) return;
@@ -239,8 +256,7 @@ const PosScreen: React.FC = () => {
   };
 
   // CÁLCULO DE TOTAL
-  const grossSum = activeTab.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
-  const totalAmount = Math.max(0, grossSum - (activeTab.discount || 0));
+  const totalAmount = getNetTotal(activeTab);
 
   // MANEJADORES DEL FLUJO DE COBRO
   const handleSelectPaymentMethod = (method: PaymentMethod) => {
@@ -260,6 +276,11 @@ const PosScreen: React.FC = () => {
       paymentMethod: API_PAYMENT_METHODS[activeTab.paymentMethod],
       paymentReference: referenceOrReceived.toString(),
       connectionId: inventoryHubService.getConnectionId(),
+      ...((activeTab.discountPercent || 0) > 0
+        ? { discountPercent: activeTab.discountPercent }
+        : getDiscountAmount(activeTab) > 0
+        ? { discountAmount: getDiscountAmount(activeTab) }
+        : {}),
       details: activeTab.items.map(item => ({
         presentationId: item.presentationId,
         quantity: item.quantity
@@ -331,6 +352,8 @@ const PosScreen: React.FC = () => {
           onProcessSale={() => setCheckoutStep('SELECT_METHOD')}
           onPrintQuote={() => showNotification(`🖨️ Imprimiendo cotización de "${activeTab.title}"...`)}
           onRequestSwitch={() => setShowSwitchModal(true)}
+          canApplyDiscount={canApplyDiscount}
+          onOpenDiscountModal={() => setShowDiscountModal(true)}
         />
       </div>
 
@@ -426,6 +449,21 @@ const PosScreen: React.FC = () => {
       )}
       
       {showReturnModal && <PosReturnModal onClose={() => setShowReturnModal(false)} />}
+
+      {/* MODAL DE DESCUENTO ESPECIAL */}
+      {showDiscountModal && (
+        <PosDiscountModal
+          grossTotal={getGrossSum(activeTab)}
+          currentDiscountAmount={activeTab.discount}
+          currentDiscountPercent={activeTab.discountPercent}
+          onClose={() => setShowDiscountModal(false)}
+          onConfirm={(mode, value) => {
+            setDiscount(mode, value);
+            setShowDiscountModal(false);
+            showNotification(mode === 'NONE' ? '🏷️ Descuento retirado.' : '🏷️ Descuento aplicado exitosamente.');
+          }}
+        />
+      )}
       {/* MODAL DE ADVERTENCIA DE LÍMITE DE PESTAÑAS */}
       {showTabLimitModal && (
         <PosTabLimitModal

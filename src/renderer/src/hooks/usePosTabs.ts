@@ -403,7 +403,17 @@ export const usePosTabs = (onStockConflict?: (message: string) => void) => {
   };
 
   const clearActiveTabItems = () => {
-    updateActiveTab(tab => ({ ...tab, items: [], discount: 0 }));
+    updateActiveTab(tab => ({ ...tab, items: [], discount: 0, discountPercent: 0 }));
+  };
+
+  // Aplica (o quita) el descuento de la pestaña activa. Solo puede haber uno: porcentaje o monto fijo.
+  const setDiscount = (mode: 'PERCENT' | 'AMOUNT' | 'NONE', value: number = 0) => {
+    const safe = isNaN(value) || value < 0 ? 0 : value;
+    updateActiveTab(tab => {
+      if (mode === 'PERCENT') return { ...tab, discountPercent: Math.min(100, safe), discount: 0 };
+      if (mode === 'AMOUNT') return { ...tab, discount: safe, discountPercent: 0 };
+      return { ...tab, discount: 0, discountPercent: 0 };
+    });
   };
 
   const setClientName = (name: string) => {
@@ -450,6 +460,7 @@ export const usePosTabs = (onStockConflict?: (message: string) => void) => {
     clearActiveTabItems,
     setClientName,
     setPaymentMethod,
+    setDiscount,
     closeAllTabs
   };
 };

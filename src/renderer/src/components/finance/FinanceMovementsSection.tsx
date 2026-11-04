@@ -423,7 +423,8 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
               </thead>
               <tbody className="divide-y divide-gray-800/60 text-sm">
                 {paginatedSales.map((sale) => {
-                  const hasPartialReturn = sale.isActive && sale.refundedAmount > 0;
+                  const isFullReturn = sale.isActive && sale.refundedAmount > 0 && sale.netAmount <= 0.001;
+                  const hasPartialReturn = sale.isActive && sale.refundedAmount > 0 && !isFullReturn;
                   return (
                     <tr
                       key={sale.saleId}
@@ -470,7 +471,11 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {!sale.isActive ? (
                           <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
-                            Cancelada / Dev. Total
+                            Cancelada
+                          </span>
+                        ) : isFullReturn ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                            Devolución Total
                           </span>
                         ) : hasPartialReturn ? (
                           <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
@@ -574,8 +579,8 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
                     </td>
                     <td className="py-4 px-4 text-center whitespace-nowrap">
                       {ret.isFullCancellation ? (
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
-                          Total (Ticket Cancelado)
+                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                          Devolución Total
                         </span>
                       ) : (
                         <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
@@ -854,6 +859,16 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
                 )}
               </div>
               <div className="flex items-center gap-6 text-right">
+                {(ticketDetail?.discountAmount || 0) > 0 && (
+                  <div>
+                    <span className="text-[11px] text-emerald-400 uppercase font-bold block">
+                      Descuento{(ticketDetail?.discountPercent || 0) > 0 ? ` (${ticketDetail?.discountPercent}%)` : ''}
+                    </span>
+                    <span className="font-mono font-bold text-emerald-400 text-sm">
+                      -{formatCurrency(ticketDetail!.discountAmount!)}
+                    </span>
+                  </div>
+                )}
                 {selectedSaleSummary.refundedAmount > 0 && (
                   <div>
                     <span className="text-[11px] text-red-400 uppercase font-bold block">
