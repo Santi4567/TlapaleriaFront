@@ -6,7 +6,10 @@ import { Product } from '../types/product';
 import ProductTable from '../components/products/ProductTable';
 import ProductCreateForm from '../components/products/ProductCreateForm';
 import ProductReactivateView from '../components/products/ProductReactivateView';
+import { BrandManagementModal } from '../components/products/BrandManagementModal';
+import { QuickPriceModal } from '../components/products/QuickPriceModal';
 import { SlideOverlay } from '../components/common/SlideTransition';
+import { Tag } from 'lucide-react';
 
 const ProductsScreen: React.FC = () => {
   const { user } = useAuth();
@@ -22,7 +25,7 @@ const ProductsScreen: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 15;
 
-  // ESTADOS DEL FORMULARIO Y EDICIÓN
+  // ESTADOS DEL FORMULARIO Y EDICIÃ“N
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   
@@ -32,6 +35,8 @@ const ProductsScreen: React.FC = () => {
 
   const [isReactivateOpen, setIsReactivateOpen] = useState(false);
   const [reactivatingProduct, setReactivatingProduct] = useState<any | null>(null);
+  const [isBrandsModalOpen, setIsBrandsModalOpen] = useState(false);
+  const [quickPriceProduct, setQuickPriceProduct] = useState<Product | null>(null);
 
   const fetchProducts = async (term: string = '', activeState: boolean = isActiveFilter) => {
     if (!user?.token) return;
@@ -52,7 +57,7 @@ const ProductsScreen: React.FC = () => {
         setProducts(response.data.data);
         setTotalPages(response.data.totalPages);
       } else {
-        setError("No se pudo conectar con el servidor para cargar el catálogo.");
+        setError("No se pudo conectar con el servidor para cargar el catÃ¡logo.");
       }
     }
     setIsLoading(false);
@@ -76,10 +81,11 @@ const ProductsScreen: React.FC = () => {
     
     setIsReactivateOpen(false);
     setReactivatingProduct(null);
+    setQuickPriceProduct(null);
 
   };
 
-  // CAMBIO DE PESTAÑA
+  // CAMBIO DE PESTAÃ‘A
   const handleTabChange = (active: boolean) => {
     if (isActiveFilter === active && !isFormOpen && !isReactivateOpen) return;
     handleCloseAllOverlays();
@@ -100,7 +106,7 @@ const ProductsScreen: React.FC = () => {
       }
     } else {
       setSuccessMessage(null);
-      setError("No se pudo cargar la información del producto.");
+      setError("No se pudo cargar la informaciÃ³n del producto.");
     }
   };
 
@@ -150,18 +156,18 @@ const ProductsScreen: React.FC = () => {
 
     if (res && res.success) {
       handleCloseAllOverlays();
-      setSuccessMessage(`¡Producto "${productData.name}" ${isEditing ? 'actualizado' : 'guardado'} exitosamente!`);
+      setSuccessMessage(`Â¡Producto "${productData.name}" ${isEditing ? 'actualizado' : 'guardado'} exitosamente!`);
       setTimeout(() => setSuccessMessage(null), 5000);
       fetchProducts(searchTerm, isActiveFilter);
     } else {
-      setFormError(res?.message || "Ocurrió un error al procesar el producto en el servidor.");
+      setFormError(res?.message || "OcurriÃ³ un error al procesar el producto en el servidor.");
     }
   };
 
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col relative overflow-hidden">
       
-      {/* BANNER VERDE DE ÉXITO BLINDADO FLOTANTE */}
+      {/* BANNER VERDE DE Ã‰XITO BLINDADO FLOTANTE */}
       {successMessage && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-50 pointer-events-auto">
           <div className="bg-[#1a1a1a]/95 backdrop-blur-md border border-green-500/50 rounded-2xl text-green-400 font-extrabold text-lg flex items-center justify-between p-4 shadow-[0_10px_25px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-4 duration-300">
@@ -174,9 +180,9 @@ const ProductsScreen: React.FC = () => {
             <button 
               onClick={() => setSuccessMessage(null)} 
               className="text-green-500 hover:text-white font-bold ml-4 p-1 rounded-lg transition-colors"
-              title="Cerrar notificación"
+              title="Cerrar notificaciÃ³n"
             >
-              ✕
+              âœ•
             </button>
           </div>
         </div>
@@ -185,11 +191,11 @@ const ProductsScreen: React.FC = () => {
       {/* CONTENEDOR MAESTRO */}
       <div className="overlay-host flex-1 relative w-full h-full overflow-hidden flex flex-col">
         
-        {/* VISTA 1: CATÁLOGO Y TABLA (Siempre visible de fondo para evitar parpadeos) */}
+        {/* VISTA 1: CATÃLOGO Y TABLA (Siempre visible de fondo para evitar parpadeos) */}
         <div className={`overlay-bg w-full h-full flex flex-col flex-1 transition-[translate,opacity] duration-200 ease-out ${(isFormOpen || isReactivateOpen) ? 'pointer-events-none -translate-x-[6%] opacity-40' : 'relative'}`}>
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
             <div>
-              <h2 className="text-4xl font-extrabold text-white tracking-tight">Catálogo de Productos</h2>
+              <h2 className="text-4xl font-extrabold text-white tracking-tight">Catalogo de Productos</h2>
               <p className="text-brand-text-muted text-lg mt-1">Gestiona el inventario base y sus presentaciones.</p>
             </div>
             
@@ -212,12 +218,21 @@ const ProductsScreen: React.FC = () => {
               <div className="relative w-full sm:w-[350px]">
                 <input 
                   type="text" 
-                  placeholder="Buscar producto, código, marca..." 
+                  placeholder="Buscar producto, codigo, marca..." 
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-lg rounded-xl pl-5 pr-12 py-3 focus:outline-none focus:border-brand-orange focus:ring-1 focus:ring-brand-orange transition-all placeholder-gray-500"
                 />
               </div>
+
+              <button 
+                onClick={() => setIsBrandsModalOpen(true)}
+                className="bg-[#1a1a1a] hover:bg-gray-800 text-gray-200 hover:text-white border border-gray-700 font-bold text-base px-5 py-3 rounded-xl transition-all shadow-md flex items-center justify-center whitespace-nowrap cursor-pointer gap-2"
+                title="Administrar marcas, corregir nombres y fusionar duplicados"
+              >
+                <Tag className="w-5 h-5 text-orange-400" />
+                <span>Marcas</span>
+              </button>
 
               <button 
                 onClick={handleOpenCreateForm}
@@ -238,6 +253,7 @@ const ProductsScreen: React.FC = () => {
             onPageChange={setCurrentPage}
             onRetry={() => fetchProducts(searchTerm, isActiveFilter)}
             onEdit={handleEditClick}
+            onEditPricing={(p) => setQuickPriceProduct(p)}
             searchTerm={searchTerm}
             onClearSearch={() => { setSearchTerm(''); setCurrentPage(1); }}
           />
@@ -256,7 +272,7 @@ const ProductsScreen: React.FC = () => {
           />
         </SlideOverlay>
 
-        {/* VISTA 3: REACTIVACIÓN DE PRODUCTOS INACTIVOS */}
+        {/* VISTA 3: REACTIVACIÃ“N DE PRODUCTOS INACTIVOS */}
         <SlideOverlay open={isReactivateOpen} className="absolute inset-0 w-full h-full flex flex-col z-30 bg-[#161616]">
           <ProductReactivateView
             product={reactivatingProduct}
@@ -268,6 +284,24 @@ const ProductsScreen: React.FC = () => {
       </div>
 
 
+      {/* MODAL DE GESTION DE MARCAS */}
+      <BrandManagementModal
+        isOpen={isBrandsModalOpen}
+        onClose={() => setIsBrandsModalOpen(false)}
+        onBrandsUpdated={() => fetchProducts(searchTerm, isActiveFilter)}
+      />
+      {/* MODAL DE EDICION RAPIDA DE PRECIOS */}
+      <QuickPriceModal
+        isOpen={!!quickPriceProduct}
+        product={quickPriceProduct}
+        onClose={() => setQuickPriceProduct(null)}
+        onSaved={(updated) => {
+          setQuickPriceProduct(null);
+          setSuccessMessage(`¡Precios de "${updated.name}" actualizados exitosamente!`);
+          setTimeout(() => setSuccessMessage(null), 5000);
+          fetchProducts(searchTerm, isActiveFilter);
+        }}
+      />
     </div>
   );
 };

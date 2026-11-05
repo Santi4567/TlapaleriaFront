@@ -224,6 +224,11 @@ const ReturnsWorkspace: React.FC<ReturnsWorkspaceProps> = ({
     if (!selectedSale || !token) return;
     setErrorMessage(null);
 
+    if ((selectedSale.discountPercent || 0) >= 100 || (selectedSale.totalAmount || 0) <= 0) {
+      setErrorMessage('No es posible realizar devoluciones sobre tickets con el 100% de descuento o total $0.00.');
+      return;
+    }
+
     const detailsPayload = Object.entries(returnQuantities)
       .filter(([, qty]) => qty > 0)
       .map(([saleDetailId, quantityReturned]) => ({

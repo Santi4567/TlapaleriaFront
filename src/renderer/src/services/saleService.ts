@@ -2,6 +2,7 @@
 import { fetchWithAuth } from "../utils/fetchClient";
 import { ApiResponse, PagedResponse } from "../types/product";
 import { SaleTicketDetail } from "../types/finance";
+import { DashboardSummary } from "../types/dashboard";
 
 const BASE_API = import.meta.env.VITE_API_URL;
 const API_URL = `${BASE_API}/Sales`;
@@ -85,6 +86,38 @@ export const saleService = {
     } catch (error) {
       console.error('Error al obtener el ticket por ID:', error);
       return null;
+    }
+  },
+  // Resumen del día para el Dashboard
+  async getDashboardSummary(token: string): Promise<ApiResponse<DashboardSummary> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/dashboard-summary`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      const data: ApiResponse<DashboardSummary> = await response.json();
+
+      if (!response.ok) {
+        console.error('Error del servidor al obtener dashboard-summary:', data?.message);
+        return {
+          success: false,
+          message: data?.message || `Error HTTP: ${response.status}`,
+          data: null as any
+        };
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error al obtener resumen del dashboard:', error);
+      return {
+        success: false,
+        message: error?.message || 'Error al conectar con el servidor.',
+        data: null as any
+      };
     }
   }
 };

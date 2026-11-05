@@ -11,6 +11,7 @@ interface ProductTableProps {
   onPageChange: (newPage: number) => void;
   onRetry: () => void;
   onEdit: (product: Product) => void;
+  onEditPricing?: (product: Product) => void;
   searchTerm: string;
   onClearSearch: () => void;
 }
@@ -24,6 +25,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
   onPageChange,
   onRetry,
   onEdit,
+  onEditPricing,
   searchTerm,
   onClearSearch
 }) => {
@@ -42,7 +44,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
               {/* NUEVA COLUMNA */}
               <th className="px-6 py-5 font-bold text-lg text-center w-[140px]">Tipo Venta</th>
               <th className="px-6 py-5 font-bold text-lg">Presentaciones (Venta)</th>
-              <th className="px-6 py-5 font-bold text-lg text-center w-[120px] sticky right-0 bg-[#121212]">Acciones</th>
+              <th className="px-6 py-5 font-bold text-lg text-center w-[180px] sticky right-0 bg-[#121212]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
@@ -143,7 +145,14 @@ const ProductTable: React.FC<ProductTableProps> = ({
                   <td className="px-6 py-5">
                     <div className="flex flex-wrap gap-2.5">
                       {product.presentations.map(pres => (
-                        <span key={pres.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-black border border-gray-600 text-gray-200 shadow-sm">
+                        <span 
+                          key={pres.id} 
+                          onClick={() => onEditPricing && onEditPricing(product)}
+                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-black border border-gray-600 text-gray-200 shadow-sm ${
+                            onEditPricing ? 'cursor-pointer hover:border-emerald-500 hover:text-emerald-300 transition-colors' : ''
+                          }`}
+                          title={onEditPricing ? "Click para editar precios rápidamente" : undefined}
+                        >
                           {pres.name} - <span className="text-brand-orange ml-1">${pres.price}</span>
                         </span>
                       ))}
@@ -151,12 +160,26 @@ const ProductTable: React.FC<ProductTableProps> = ({
                   </td>
                   
                   <td className="px-6 py-5 text-center sticky right-0 bg-[#1a1a1a] group-hover:bg-[#1f1f1f] transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.2)] border-l border-gray-800">
-                    <button 
-                      onClick={() => onEdit(product)}
-                      className="text-brand-orange font-bold text-base hover:text-white transition-colors bg-brand-orange/10 px-4 py-2 rounded-lg hover:bg-brand-orange/20"
-                    >
-                      Editar
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      {onEditPricing && (
+                        <button 
+                          type="button"
+                          onClick={() => onEditPricing(product)}
+                          className="text-emerald-400 font-bold text-sm hover:text-white transition-colors bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 px-3 py-2 rounded-lg flex items-center gap-1 shadow-sm whitespace-nowrap cursor-pointer"
+                          title="Edición rápida de precios, margen y proveedor"
+                        >
+                          <span>💲 Precios</span>
+                        </button>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={() => onEdit(product)}
+                        className="text-brand-orange font-bold text-sm hover:text-white transition-colors bg-brand-orange/10 px-3 py-2 rounded-lg hover:bg-brand-orange/20 whitespace-nowrap cursor-pointer"
+                        title="Editar producto completo"
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

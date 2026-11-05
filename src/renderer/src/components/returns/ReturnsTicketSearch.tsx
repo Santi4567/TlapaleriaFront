@@ -173,6 +173,10 @@ export const ReturnsTicketSearch: React.FC<ReturnsTicketSearchProps> = ({
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30 shrink-0">
                               Cancelado
                             </span>
+                          ) : (sale.discountPercent || 0) >= 100 || (sale.totalAmount || 0) <= 0 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+                              100% Descuento
+                            </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
                               Activo

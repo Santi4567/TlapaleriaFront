@@ -125,7 +125,24 @@ export interface UpdateProductRequest {
 }
 
 // ==========================================
-// 4. INTERFACES DE RESPUESTA HTTP (APIs)
+// 4. ACTUALIZACION RAPIDA DE PRECIOS Y PROVEEDOR (PATCH)
+// ==========================================
+
+export interface QuickPresentationPriceItem {
+  id: number;
+  price: number;
+  supplierPrice: number;
+  isActive: boolean;
+}
+
+export interface QuickPriceUpdateRequest {
+  supplierId: number;
+  profitMargin?: number | null;
+  presentations: QuickPresentationPriceItem[];
+}
+
+// ==========================================
+// 5. INTERFACES DE RESPUESTA HTTP (APIs)
 // ==========================================
 
 export interface ApiResponse<T> {

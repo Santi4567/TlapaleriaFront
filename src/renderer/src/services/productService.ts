@@ -5,7 +5,8 @@ import {
   UpdateProductRequest, 
   ApiResponse, 
   PagedResponse,
-  ExpiringProduct 
+  ExpiringProduct,
+  QuickPriceUpdateRequest
 } from '../types/product';
 import { fetchWithAuth } from "../utils/fetchClient";
 
@@ -294,6 +295,44 @@ export const productService = {
     } catch (error) {
       console.error('Error al obtener sugerencias de nombres:', error);
       return null;
+    }
+  },
+
+  // 11. ACTUALIZACION RAPIDA DE PRECIOS Y PROVEEDOR (PATCH)
+  async updatePricing(
+    token: string,
+    id: number,
+    data: QuickPriceUpdateRequest
+  ): Promise<ApiResponse<Product> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/${id}/pricing`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const resData: ApiResponse<Product> = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData.message || 'Ocurrió un error al actualizar los precios.',
+          data: null as any
+        };
+      }
+
+      return resData;
+    } catch (error: any) {
+      console.error(`Error al actualizar precios del producto ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || 'No se pudo conectar con el servidor para actualizar precios.',
+        data: null as any
+      };
     }
   }
 };

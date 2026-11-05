@@ -17,12 +17,12 @@ export const brandService = {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'text/plain',
+          'Accept': 'application/json',
         },
       });
 
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Error al obtener el catálogo de marcas:', error);
       return null;
@@ -37,14 +37,96 @@ export const brandService = {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'text/plain',
+          'Accept': 'application/json',
         },
       });
 
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Error en la búsqueda de marcas:', error);
+      return null;
+    }
+  },
+
+  // CREAR MARCA DIRECTAMENTE
+  async createBrand(token: string, name: string): Promise<ApiResponse<Brand> | null> {
+    try {
+      const response = await fetchWithAuth(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error al crear la marca:', error);
+      return null;
+    }
+  },
+
+  // RENOMBRAR MARCA (Y actualiza en cascada los productos que la usan)
+  async renameBrand(token: string, id: number, name: string): Promise<ApiResponse<Brand> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error al renombrar la marca ${id}:`, error);
+      return null;
+    }
+  },
+
+  // FUSIONAR MARCAS (Migra productos de origen a destino y elimina origen)
+  async mergeBrands(token: string, sourceBrandId: number, targetBrandId: number): Promise<ApiResponse<number> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/merge`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ sourceBrandId, targetBrandId }),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error al fusionar marcas:', error);
+      return null;
+    }
+  },
+
+  // ELIMINAR MARCA (Solo si no tiene productos asociados)
+  async deleteBrand(token: string, id: number): Promise<ApiResponse<boolean> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error al eliminar la marca ${id}:`, error);
       return null;
     }
   }
