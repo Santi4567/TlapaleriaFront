@@ -19,7 +19,11 @@ interface UserProfile {
   permisos: Permisos;
 }
 
-const UserScreen: React.FC = () => {
+interface UserScreenProps {
+  onLogout?: () => void;
+}
+
+const UserScreen: React.FC<UserScreenProps> = () => {
   const { user, logout } = useAuth();
   
   const [profile, setProfile] = useState<UserProfile | null>(null);

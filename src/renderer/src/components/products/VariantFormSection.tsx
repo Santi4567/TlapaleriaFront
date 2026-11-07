@@ -31,7 +31,6 @@ const VariantFormSection: React.FC<VariantFormSectionProps> = ({
   setPresentations,
   editingIndex,
   setEditingIndex,
-  onDeletePresentation,
   onRecalculateFromLargest,
   showNotification,
   factorChangedWarning = false,

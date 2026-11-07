@@ -15,10 +15,11 @@ import InventoryScreen from '../pages/InventoryScreen';
 import FinanceScreen from '../pages/FinanceScreen';
 import ReturnsScreen from '../pages/ReturnsScreen';
 import ExpensesScreen from "../pages/ExpensesScreen";
+import InvoicesScreen from '../pages/InvoicesScreen';
 import UserScreen from '../pages/UserScreen';
 import UserManagementScreen from '../pages/UserManagementScreen';
 import RoleManagementScreen from '../pages/RoleManagementScreen';
-//import ConfigurationScreen from '../pages/ConfigurationScreen';
+import ConfigurationScreen from '../pages/ConfigurationScreen';
 
 // Debe coincidir con la duración de --animate-app-out en index.css
 const LOGOUT_ANIMATION_MS = 300;
@@ -47,12 +48,14 @@ const MainLayout: React.FC = () => {
       case 'PENDING': return <PendingOrdersScreen />;
       case 'INVENTORY': return <InventoryScreen />;
       case 'FINANCE': return <FinanceScreen />;
+      case 'INVOICES': return <InvoicesScreen />;
       case 'RETURNS': return <ReturnsScreen />;
       case 'USER': return <UserScreen onLogout={handleLogout} />;
       case 'USER_MANAGEMENT': return <UserManagementScreen />;
       case 'ROL': return <RoleManagementScreen />;
       case 'EXPENSES': return <ExpensesScreen />;
       case 'PRODUCT_HISTORY': return <ProductHistoryScreen />;
+      case 'CONFIGURATION': return <ConfigurationScreen />;
       default: return <HomeScreen onNavigate={setCurrentView} />;
     }
   };

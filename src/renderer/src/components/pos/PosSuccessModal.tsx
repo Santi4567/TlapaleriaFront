@@ -1,5 +1,6 @@
 // src/components/pos/PosSuccessModal.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import InvoiceModal from '../invoice/InvoiceModal';
 
 interface PosSuccessModalProps {
   saleData: any; 
@@ -10,8 +11,11 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
   saleData,
   onFinish
 }) => {
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (showInvoiceModal) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         onFinish();
@@ -19,7 +23,7 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onFinish]);
+  }, [onFinish, showInvoiceModal]);
 
   if (!saleData) return null;
 
@@ -101,16 +105,37 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
           </div>
         </div>
 
-        {/* BOTÓN MÁS GRANDE Y CÓMODO */}
-        <button
-          type="button"
-          autoFocus
-          onClick={onFinish}
-          className="w-full py-5 bg-green-500 hover:bg-green-400 text-black font-black text-xl rounded-2xl transition-all shadow-[0_0_30px_rgba(34,197,94,0.4)] flex items-center justify-center space-x-3 border border-green-400"
-        >
-          <span>✓ Continuar / Siguiente Venta</span>
-          <kbd className="bg-black/40 text-black px-3 py-1 rounded-lg font-mono text-sm shadow-inner">Enter ↵</kbd>
-        </button>
+        {/* BOTONES DE ACCIÓN: FACTURAR O CONTINUAR */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={() => setShowInvoiceModal(true)}
+            className="py-4 px-6 bg-brand-orange/20 hover:bg-brand-orange text-brand-orange hover:text-brand-deep-dark font-black text-lg rounded-2xl transition-all border border-brand-orange/40 flex items-center justify-center gap-2 shrink-0 shadow-[0_0_20px_rgba(255,90,0,0.15)]"
+          >
+            <span>🧾</span>
+            <span>Facturar Venta</span>
+          </button>
+
+          <button
+            type="button"
+            autoFocus
+            onClick={onFinish}
+            className="flex-1 py-4 bg-green-500 hover:bg-green-400 text-black font-black text-xl rounded-2xl transition-all shadow-[0_0_30px_rgba(34,197,94,0.4)] flex items-center justify-center space-x-3 border border-green-400"
+          >
+            <span>✓ Continuar / Siguiente Venta</span>
+            <kbd className="bg-black/40 text-black px-3 py-1 rounded-lg font-mono text-sm shadow-inner">Enter ↵</kbd>
+          </button>
+        </div>
+
+        {/* MODAL PARA CAPTURAR DATOS FISCALES SI DECIDEN FACTURAR */}
+        {showInvoiceModal && (
+          <InvoiceModal
+            saleId={saleData.id}
+            folio={saleData.folio}
+            totalAmount={saleData.totalAmount}
+            onClose={() => setShowInvoiceModal(false)}
+          />
+        )}
 
       </div>
     </div>
