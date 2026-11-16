@@ -1,6 +1,6 @@
 // src/types/pos.ts
 
-export type PaymentMethod = 'CASH' | 'TRANSFER' | 'CARD';
+export type PaymentMethod = 'CASH' | 'TRANSFER' | 'CARD' | 'CREDIT';
 
 export interface CartItem {
   productId: number;
@@ -27,6 +27,7 @@ export interface SaleTab {
   tabNumber: number;
   isRemovable?: boolean;
   clientName: string;
+  customerId?: number | null;
   paymentMethod: PaymentMethod; // NUEVO: Método de pago seleccionado
   items: CartItem[];
   discount: number; // Descuento en pesos (monto fijo)

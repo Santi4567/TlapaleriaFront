@@ -22,6 +22,8 @@ export interface SaleReturnRecord {
     username?: string;
   } | null;
   totalRefunded: number;
+  appliedToDebtAmount?: number;
+  cashRefundedAmount?: number;
   reason?: string | null;
   createdAt: string;
   details: ReturnDetailItem[];

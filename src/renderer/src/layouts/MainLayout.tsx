@@ -16,6 +16,7 @@ import FinanceScreen from '../pages/FinanceScreen';
 import ReturnsScreen from '../pages/ReturnsScreen';
 import ExpensesScreen from "../pages/ExpensesScreen";
 import InvoicesScreen from '../pages/InvoicesScreen';
+import CreditAccountsScreen from '../pages/CreditAccountsScreen';
 import UserScreen from '../pages/UserScreen';
 import UserManagementScreen from '../pages/UserManagementScreen';
 import RoleManagementScreen from '../pages/RoleManagementScreen';
@@ -42,6 +43,7 @@ const MainLayout: React.FC = () => {
     switch (currentView) {
       case 'HOME': return <HomeScreen onNavigate={setCurrentView} />;
       case 'POS': return <PosScreen />;
+      case 'CREDITS': return <CreditAccountsScreen />;
       case 'WORK': return <WorkTasksScreen />;
       case 'PRODUCTS': return <ProductsScreen />;
       case 'SUPPLIERS': return <SuppliersScreen />;

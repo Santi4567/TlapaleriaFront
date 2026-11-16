@@ -35,6 +35,7 @@ const RolePermissionsPanel: React.FC<RolePermissionsPanelProps> = ({
     else if (p.nombreSistema.includes('rol')) moduleName = '⚙️ Roles';
     else if (p.nombreSistema.includes('expenses')) moduleName = '📉 EGRESOS';
     else if (p.nombreSistema.includes('reports')) moduleName = '📈 REPORTES FINANCIEROS';
+    else if (p.nombreSistema.includes('customers') || p.nombreSistema.includes('credit_accounts')) moduleName = '🤝 Clientes y Cuentas de Crédito';
 
     if (!groupedPermissions[moduleName]) groupedPermissions[moduleName] = [];
     groupedPermissions[moduleName].push(p);

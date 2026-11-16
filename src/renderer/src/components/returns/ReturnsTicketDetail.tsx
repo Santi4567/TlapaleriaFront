@@ -219,11 +219,19 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
               <p className="text-xs text-gray-300 mt-0.5">
                 El stock fue reintegrado al almacén y se registró el movimiento en el Kardex.
               </p>
+              {(lastCreatedReturn.appliedToDebtAmount || 0) > 0 && (
+                <p className="text-xs text-amber-300 font-bold mt-1">
+                  🤝 Venta a Crédito: Se descontaron {formatCurrency(lastCreatedReturn.appliedToDebtAmount || 0)} de la deuda del cliente
+                  {(lastCreatedReturn.cashRefundedAmount || 0) > 0
+                    ? ` y quedan ${formatCurrency(lastCreatedReturn.cashRefundedAmount || 0)} a entregar en efectivo.`
+                    : ' (no debes entregar efectivo de caja).'}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right shrink-0 bg-black/40 px-4 py-2 rounded-xl border border-emerald-500/30">
             <span className="text-[10px] uppercase font-bold text-emerald-400 block">
-              Monto Reembolsado
+              {(lastCreatedReturn.appliedToDebtAmount || 0) > 0 ? 'Total Acreditado / Reembolsado' : 'Monto Reembolsado'}
             </span>
             <span className="font-mono font-black text-lg text-white">
               {formatCurrency(lastCreatedReturn.totalRefunded)}
@@ -281,7 +289,17 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
             <span>
               Pago: <strong className="text-gray-200">{selectedSale.paymentMethod}</strong>
             </span>
+            {selectedSale.customer?.name && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-brand-orange/15 text-brand-orange border border-brand-orange/30 font-bold">
+                🤝 Cliente: {selectedSale.customer.name}
+              </span>
+            )}
           </div>
+          {selectedSale.paymentMethod === 'Credito' && (
+            <p className="text-xs text-amber-400/90 font-semibold mt-1.5">
+              ℹ️ Este ticket es a crédito: cualquier devolución descontará primero del saldo pendiente del cliente.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-6">

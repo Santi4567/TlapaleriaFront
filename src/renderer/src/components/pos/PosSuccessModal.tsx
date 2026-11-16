@@ -31,8 +31,10 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
   const dateStr = dateObj.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const timeStr = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+  const isCredit = saleData.paymentMethod === 'Credito';
   const methodText = saleData.paymentMethod === 'Efectivo' ? 'Efectivo 💵' 
                    : saleData.paymentMethod === 'Transferencia' ? 'Transferencia SPEI 🏦' 
+                   : isCredit ? 'Crédito / Fiado 🤝'
                    : 'Tarjeta TPV 💳';
 
   // Si fue en efectivo, el backend recibe el monto en paymentReference. Lo convertimos a número.
@@ -68,6 +70,13 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
             <span className="text-gray-500">Método de Pago:</span>
             <span className="text-gray-200 font-bold">{methodText}</span>
           </div>
+
+          {saleData.customer?.name && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Cliente de Confianza:</span>
+              <span className="text-brand-orange font-black">{saleData.customer.name}</span>
+            </div>
+          )}
           
           {/* Si fue transferencia o tarjeta y mandaste una referencia, la mostramos */}
           {!isCash && saleData.paymentReference && (
@@ -98,7 +107,9 @@ const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
 
           {/* TOTAL EN GRANDE */}
           <div className="flex justify-between border-t-2 border-gray-800 pt-4 mt-2 items-baseline bg-green-500/5 p-4 rounded-xl">
-            <span className="text-gray-400 font-sans font-black uppercase tracking-wider text-lg">Total Pagado:</span>
+            <span className="text-gray-400 font-sans font-black uppercase tracking-wider text-lg">
+              {isCredit ? 'Total Cargado a Cuenta:' : 'Total Pagado:'}
+            </span>
             <strong className="text-green-400 font-black text-4xl drop-shadow-md">
               ${saleData.totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </strong>

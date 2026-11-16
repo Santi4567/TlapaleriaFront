@@ -66,6 +66,31 @@ const RoleManagementScreen: React.FC = () => {
     fetchInitialData();
   }, [user]);
 
+  // Sincronización en tiempo real vía SignalR
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      if (!isCreating && user?.token) {
+        roleService.getRoles(user.token).then((rolesRes) => {
+          if (rolesRes.success && rolesRes.data) {
+            setRoles(rolesRes.data);
+            setSelectedRole((prev) => {
+              if (!prev) return rolesRes.data[0] || null;
+              const updated = rolesRes.data.find((r) => r.id === prev.id);
+              if (updated) {
+                setActivePerms(updated.permisosIds || []);
+                return updated;
+              }
+              return prev;
+            });
+          }
+        });
+      }
+    };
+
+    window.addEventListener('permissions-updated', handlePermissionsUpdated);
+    return () => window.removeEventListener('permissions-updated', handlePermissionsUpdated);
+  }, [user, isCreating]);
+
   // Manejo de selecciones
   const handleSelectRole = (role: Role) => {
     setSelectedRole(role);

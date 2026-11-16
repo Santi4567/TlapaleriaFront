@@ -19,12 +19,15 @@ export interface FinancialSaleItem {
   folio: string;
   createdAt: string;
   cashierName: string;
+  customerName?: string | null;
   paymentMethod: string;
   paymentReference?: string | null;
   itemsCount: number;
   grossAmount: number;
   refundedAmount: number;
   netAmount: number;
+  paidAmount?: number;
+  pendingBalance?: number;
   realProfitAmount: number;
   isActive: boolean;
 }
@@ -71,6 +74,8 @@ export interface FinancialReportData {
   netSalesAmount: number;
   costOfGoodsSold: number;
   realProfitAmount: number;
+  creditPaymentsCollectedAmount?: number;
+  pendingCreditSalesAmount?: number;
   chartData: FinancialChartItem[];
   sales?: FinancialSaleItem[];
   returns?: FinancialReturnItem[];
@@ -114,6 +119,13 @@ export interface SaleTicketDetail {
     id: number;
     name: string;
     username: string;
+  } | null;
+  customerId?: number | null;
+  customer?: {
+    id: number;
+    name: string;
+    alias?: string | null;
+    phone?: string | null;
   } | null;
   isActive: boolean;
   createdAt: string;

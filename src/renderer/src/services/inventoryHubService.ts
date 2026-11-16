@@ -83,7 +83,24 @@ class InventoryHubService {
       }
     });
 
+    conn.on('PermissionsUpdated', (raw: any) => {
+      console.log('[InventoryHub] 🔔 Notificación de permisos recibida:', raw);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('permissions-updated', { detail: raw }));
+      }
+    });
+
+    conn.on('UserUpdated', (raw: any) => {
+      console.log('[InventoryHub] 🔔 Notificación de usuario recibida:', raw);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user-updated', { detail: raw }));
+      }
+    });
+
     conn.onreconnected(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('permissions-updated', { detail: {} }));
+      }
       this.reconnectListeners.forEach((listener) => listener());
     });
 
@@ -214,6 +231,24 @@ class InventoryHubService {
       console.warn('[InventoryHub] Error en ClearCart:', error);
       return false;
     }
+  }
+
+  onPermissionsUpdated(listener: (data: { roleId?: number; roleName?: string }) => void): () => void {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      listener(detail);
+    };
+    window.addEventListener('permissions-updated', handler);
+    return () => window.removeEventListener('permissions-updated', handler);
+  }
+
+  onUserUpdated(listener: (data: { userId?: number; roleName?: string; isActive?: boolean }) => void): () => void {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      listener(detail);
+    };
+    window.addEventListener('user-updated', handler);
+    return () => window.removeEventListener('user-updated', handler);
   }
 }
 

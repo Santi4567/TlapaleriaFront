@@ -30,7 +30,8 @@ const PosPaymentMethodModal: React.FC<PosPaymentMethodModalProps> = ({
   const paymentOptions: PaymentOption[] = [
     { id: 'CASH', title: 'Efectivo', icon: '💵', subtitle: 'Pago en mostrador →' },
     { id: 'TRANSFER', title: 'Transferencia', icon: '🏦', subtitle: 'SPEI / BBVA →' },
-    { id: 'CARD', title: 'Tarjeta Débito/Crédito', icon: '💳', subtitle: 'Terminal TPV →' }
+    { id: 'CARD', title: 'Tarjeta Débito/Crédito', icon: '💳', subtitle: 'Terminal TPV →' },
+    { id: 'CREDIT', title: 'Crédito / Fiado', icon: '🤝', subtitle: 'Cliente de confianza →' }
   ];
 
   // ============================================================================

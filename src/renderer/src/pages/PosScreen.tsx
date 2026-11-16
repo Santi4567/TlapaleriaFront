@@ -27,8 +27,9 @@ import PosCloseAllConfirmModal from '../components/pos/PosCloseAllConfirmModal';
 import PosTabLimitModal from '../components/pos/PosTabLimitModal';
 import PosReturnModal from '../components/pos/PosReturnModal';
 import PosDiscountModal from '../components/pos/PosDiscountModal';
+import PosCreditSaleModal, { CreditCheckoutPayload } from '../components/pos/PosCreditSaleModal';
 
-type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'SUCCESS';
+type CheckoutStep = 'NONE' | 'SELECT_METHOD' | 'CASH_HELPER' | 'TRANSFER_CARD_INPUT' | 'CREDIT_CHECKOUT' | 'SUCCESS';
 
 const PosScreen: React.FC = () => {
   const { user } = useAuth();
@@ -95,7 +96,8 @@ const PosScreen: React.FC = () => {
   const API_PAYMENT_METHODS: Record<PaymentMethod, string> = {
     CASH: 'Efectivo',
     TRANSFER: 'Transferencia',
-    CARD: 'Tarjeta'
+    CARD: 'Tarjeta',
+    CREDIT: 'Credito'
   };
 
   const showNotification = (msg: string) => {
@@ -263,8 +265,46 @@ const PosScreen: React.FC = () => {
     setPaymentMethod(method);
     if (method === 'CASH') {
       setCheckoutStep('CASH_HELPER');
+    } else if (method === 'CREDIT') {
+      setCheckoutStep('CREDIT_CHECKOUT');
     } else {
       setCheckoutStep('TRANSFER_CARD_INPUT');
+    }
+  };
+
+  const handleFinishCreditTransaction = async (creditData: CreditCheckoutPayload) => {
+    if (!user?.token) return;
+    setIsProcessingSale(true);
+
+    const payload = {
+      paymentMethod: 'Credito',
+      customerId: creditData.customerId,
+      initialPayment: creditData.initialPayment,
+      initialPaymentMethod: creditData.initialPaymentMethod,
+      paymentReference: creditData.paymentReference,
+      dueDate: creditData.dueDate,
+      creditNotes: creditData.creditNotes,
+      connectionId: inventoryHubService.getConnectionId(),
+      ...((activeTab.discountPercent || 0) > 0
+        ? { discountPercent: activeTab.discountPercent }
+        : getDiscountAmount(activeTab) > 0
+        ? { discountAmount: getDiscountAmount(activeTab) }
+        : {}),
+      details: activeTab.items.map(item => ({
+        presentationId: item.presentationId,
+        quantity: item.quantity
+      }))
+    };
+
+    const response = await saleService.createSale(user.token, payload);
+    setIsProcessingSale(false);
+
+    if (response && response.success) {
+      setClientName(creditData.customerName);
+      setLastSaleData(response.data);
+      setCheckoutStep('SUCCESS');
+    } else {
+      showNotification(`❌ Error: ${response?.message || 'No se pudo registrar la venta a crédito.'}`);
     }
   };
 
@@ -426,6 +466,15 @@ const PosScreen: React.FC = () => {
           isProcessing={isProcessingSale}
           onClose={() => setCheckoutStep('SELECT_METHOD')}
           onConfirmPayment={(ref) => handleFinishTransaction(ref)}
+        />
+      )}
+
+      {checkoutStep === 'CREDIT_CHECKOUT' && (
+        <PosCreditSaleModal
+          totalAmount={totalAmount}
+          isProcessing={isProcessingSale}
+          onClose={() => setCheckoutStep('SELECT_METHOD')}
+          onConfirmCreditSale={handleFinishCreditTransaction}
         />
       )}
 

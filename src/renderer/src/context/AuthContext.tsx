@@ -1,5 +1,5 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from 'react';
 import { UserData, LoginRequest, ValidationErrorResponse } from '../types/auth';
 import { authService } from '../services/authService';
 import { inventoryHubService } from '../services/inventoryHubService';
@@ -12,6 +12,7 @@ interface AuthContextType {
   validationErrors: ValidationErrorResponse['errors'] | null; // Errores de campo (400)
   login: (credentials: LoginRequest) => Promise<boolean>; // Devuelve true si el login fue exitoso
   logout: () => Promise<void>; // Asíncrono para limpiar la base de datos y el store
+  refreshProfile: () => Promise<void>; // Actualizar perfil y permisos en segundo plano vía SignalR
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,30 +24,112 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [authError, setAuthError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrorResponse['errors'] | null>(null);
 
-  // fetchClient.ts dispara estos dos eventos:
+  // Mantener referencia mutable del usuario para los callbacks de eventos sin stale closures
+  const userRef = useRef<UserData | null>(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Conectar a SignalR tan pronto como haya token de usuario disponible
+  useEffect(() => {
+    if (user?.token) {
+      inventoryHubService.connect(user.token).catch((err) => {
+        console.warn('[AuthContext] ⚠️ Error al conectar al Hub en tiempo real:', err);
+      });
+    }
+  }, [user?.token]);
+
+  // Función para refrescar perfil y permisos silenciosamente en segundo plano
+  const refreshProfile = async () => {
+    const currentUser = userRef.current;
+    if (!currentUser?.token) return;
+
+    try {
+      const profileResponse = await authService.getProfile(currentUser.token);
+      if (profileResponse && profileResponse.success && profileResponse.data) {
+        setUser((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            name: profileResponse.data.name,
+            rol: profileResponse.data.rol,
+            permisos: profileResponse.data.permisos
+          };
+        });
+        console.log('[AuthContext] ⚡ Permisos y perfil actualizados dinámicamente vía SignalR.');
+      }
+    } catch (error) {
+      console.warn('[AuthContext] ⚠️ Error al sincronizar perfil en segundo plano:', error);
+    }
+  };
+
+  // fetchClient.ts y SignalR disparan estos eventos:
   // - 'token-refreshed': cuando refresca el access token en segundo plano.
-  // - 'auth-expired': cuando el refresh falla de verdad (sesión muerta).
+  // - 'auth-expired': cuando el refresh falla o el usuario es desactivado.
+  // - 'permissions-updated': cuando el admin cambia permisos del rol vía SignalR.
+  // - 'user-updated': cuando el admin cambia datos o rol del usuario vía SignalR.
   useEffect(() => {
     const handleTokenRefreshed = (event: Event) => {
       const { token } = (event as CustomEvent<{ token: string }>).detail;
       console.log('[AuthContext] 🔑 Token actualizado tras refresh automático.');
-      setUser(prevUser => (prevUser ? { ...prevUser, token } : prevUser));
+      setUser((prevUser) => (prevUser ? { ...prevUser, token } : prevUser));
     };
 
     const handleAuthExpired = (event: Event) => {
       const message = (event as CustomEvent<{ message?: string }>).detail?.message;
-      console.warn('[AuthContext] 🚪 Sesión realmente expirada (refresh falló). Cerrando sesión...', message);
+      console.warn('[AuthContext] 🚪 Sesión expirada. Cerrando sesión...', message);
       inventoryHubService.disconnect();
       setUser(null);
       setAuthError(message || 'Tu sesión expiró. Por favor, inicia sesión de nuevo.');
     };
 
+    const handlePermissionsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ roleId?: number; roleName?: string }>).detail;
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
+      // Si el evento especifica un rol y no coincide con el nuestro, lo ignoramos
+      if (detail?.roleName && currentUser.rol && detail.roleName !== currentUser.rol) {
+        return;
+      }
+
+      console.log('[AuthContext] 🔄 Permisos modificados en el servidor para rol:', detail?.roleName || 'Global');
+      refreshProfile();
+    };
+
+    const handleUserUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: number; roleName?: string; isActive?: boolean }>).detail;
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
+      if (detail?.userId && detail.userId === currentUser.id) {
+        if (detail.isActive === false) {
+          console.warn('[AuthContext] 🛑 Cuenta desactivada por un administrador.');
+          window.dispatchEvent(
+            new CustomEvent('auth-expired', {
+              detail: { message: 'Tu cuenta ha sido desactivada por un administrador.' }
+            })
+          );
+          return;
+        }
+
+        if (detail.roleName && detail.roleName !== currentUser.rol) {
+          console.log('[AuthContext] 🔄 Rol del usuario actualizado por un administrador a:', detail.roleName);
+          refreshProfile();
+        }
+      }
+    };
+
     window.addEventListener('token-refreshed', handleTokenRefreshed);
     window.addEventListener('auth-expired', handleAuthExpired);
+    window.addEventListener('permissions-updated', handlePermissionsUpdated);
+    window.addEventListener('user-updated', handleUserUpdated);
 
     return () => {
       window.removeEventListener('token-refreshed', handleTokenRefreshed);
       window.removeEventListener('auth-expired', handleAuthExpired);
+      window.removeEventListener('permissions-updated', handlePermissionsUpdated);
+      window.removeEventListener('user-updated', handleUserUpdated);
     };
   }, []);
 
@@ -60,13 +143,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // 1. Manejo de Éxito (success: true)
       if ('success' in response && response.success && response.data) {
-        
         // Extraemos lo básico que nos dio el primer endpoint
         const token = response.data.token;
         const usuario = response.data.usuario;
-        
+
         // NUEVO: Guardamos el refresh token de forma segura (encriptado en disco)
-        const refreshToken = (response.data as any).refreshToken; 
+        const refreshToken = (response.data as any).refreshToken;
         if (refreshToken) {
           await saveSecureToken(refreshToken);
         }
@@ -122,7 +204,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // 1. Leer y desencriptar el token de forma asíncrona
       const storedRefreshToken = await getSecureToken();
-      
+
       if (storedRefreshToken) {
         // 2. Le avisamos al backend que destruya la sesión en la base de datos
         await authService.logout(storedRefreshToken);
@@ -133,15 +215,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await inventoryHubService.disconnect();
 
       // 3. Destruirlo del disco duro de forma segura
-      await deleteSecureToken(); 
-      
+      await deleteSecureToken();
+
       // 4. Limpiamos la memoria de React
-      setUser(null); 
+      setUser(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authError, validationErrors, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, authError, validationErrors, login, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

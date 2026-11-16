@@ -207,6 +207,19 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
         </div>
       );
     }
+    if (method === 'Credito') {
+      return (
+        <div className="flex flex-col">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400">
+            <span>🤝</span>
+            Crédito / Fiado
+          </span>
+          {reference && (
+            <span className="text-[10px] text-gray-500 font-mono">Ref: {reference}</span>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col">
         <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-400">
@@ -290,7 +303,7 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
           {subTab === 'sales' && (
             <div className="flex items-center bg-[#121212] p-1 rounded-xl border border-gray-800 text-xs font-bold">
-              {(['ALL', 'Efectivo', 'Tarjeta', 'Transferencia'] as const).map((m) => (
+              {(['ALL', 'Efectivo', 'Tarjeta', 'Transferencia', 'Credito'] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -304,7 +317,7 @@ const FinanceMovementsSection: React.FC<FinanceMovementsSectionProps> = ({ data 
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  {m === 'ALL' ? 'Todos' : m}
+                  {m === 'ALL' ? 'Todos' : m === 'Credito' ? 'Crédito' : m}
                 </button>
               ))}
             </div>

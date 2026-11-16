@@ -29,6 +29,9 @@ export interface DashboardSummary {
   grossSalesAmount: number;
   totalRefundedAmount: number;
   totalTicketsCount: number;
+  creditSalesAmountToday?: number;
+  creditPaymentsCollectedToday?: number;
+  totalPendingReceivables?: number;
   isGlobal: boolean;
   scopeLabel: string;
   paymentMethods: PaymentMethodSummary[];
