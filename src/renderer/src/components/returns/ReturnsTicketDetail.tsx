@@ -259,17 +259,17 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30">
                 Ticket Cancelado (Anulado)
               </span>
-            ) : isZeroAmountSale ? (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                100% Descuento (No Retornable)
-              </span>
             ) : isFullyReturned ? (
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-                Devolución Total (100% Reembolsado)
+                Devolución Total (100% {isZeroAmountSale ? 'Reintegrado' : 'Reembolsado'})
               </span>
-            ) : totalPreviouslyRefunded > 0 ? (
+            ) : totalPreviouslyRefunded > 0 || (isZeroAmountSale && Object.values(alreadyReturnedByDetailId).some((q) => q > 0)) ? (
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                 Con Devolución Parcial Previa
+              </span>
+            ) : isZeroAmountSale ? (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                100% Descuento (Cortesía)
               </span>
             ) : (
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
@@ -402,36 +402,36 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
       </div>
 
       {/* AVISO CUANDO EL TICKET YA FUE DEVUELTO AL 100% */}
-      {selectedSale.isActive && isFullyReturned && !isZeroAmountSale && (
+      {selectedSale.isActive && isFullyReturned && (
         <div className="bg-purple-500/10 border border-purple-500/30 rounded-2xl p-4 text-sm text-purple-200 flex items-center gap-3">
           <span className="text-2xl">ℹ️</span>
           <div>
             <span className="font-bold block text-purple-300">Ticket con Devolución Total</span>
             <span className="text-xs text-purple-200/80">
-              Todos los artículos de esta venta ya fueron devueltos en su totalidad. No quedan unidades disponibles para reembolsar.
+              Todos los artículos de esta venta ya fueron devueltos en su totalidad. No quedan unidades disponibles{isZeroAmountSale ? ' para reintegrar' : ' para reembolsar'}.
             </span>
           </div>
         </div>
       )}
 
-      {/* AVISO CUANDO EL TICKET TIENE 100% DE DESCUENTO O TOTAL $0 */}
-      {selectedSale.isActive && isZeroAmountSale && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-sm text-amber-200 flex items-start gap-4 shadow-lg">
-          <span className="text-3xl shrink-0">⚠️</span>
+      {/* AVISO INFORMATIVO CUANDO EL TICKET TIENE 100% DE DESCUENTO O TOTAL $0 */}
+      {selectedSale.isActive && isZeroAmountSale && !isFullyReturned && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 text-sm text-blue-200 flex items-start gap-3.5 shadow-lg">
+          <span className="text-2xl shrink-0">ℹ️</span>
           <div className="space-y-1">
-            <span className="font-extrabold text-base block text-amber-300">
+            <span className="font-extrabold text-sm block text-blue-300">
               Venta con 100% de Descuento (Cortesía / Total $0.00)
             </span>
-            <p className="text-xs text-amber-200/80 leading-relaxed">
+            <p className="text-xs text-blue-200/80 leading-relaxed">
               Este ticket no tuvo costo monetario para el cliente al haberse aplicado el 100% de descuento. 
-              Por políticas comerciales y consistencia financiera, las ventas de cortesía no admiten devoluciones ni reembolsos en caja.
+              Al procesar la devolución, los artículos seleccionados se reintegrarán al stock en almacén y Kardex sin generar salida de dinero en caja ($0.00).
             </p>
           </div>
         </div>
       )}
 
       {/* SELECTOR DE MODO DE DEVOLUCIÓN */}
-      {selectedSale.isActive && canAddReturns && !isFullyReturned && !isZeroAmountSale && (
+      {selectedSale.isActive && canAddReturns && !isFullyReturned && (
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <span className="text-xs font-extrabold uppercase tracking-wider text-orange-400">
             2. ¿Qué deseas devolver?
@@ -465,7 +465,7 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
         </div>
       )}
 
-      {selectedSale.isActive && canAddReturns && !isZeroAmountSale && returnMode === 'full' && (
+      {selectedSale.isActive && canAddReturns && returnMode === 'full' && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-sm text-red-200">
           Se devolverán todas las unidades disponibles del ticket
           ({formatQty(currentRefundSummary.totalUnits)} uds. en {currentRefundSummary.itemsCount} renglones)
@@ -474,7 +474,7 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
       )}
 
       {/* TABLA DE SELECCIÓN DE CANTIDADES A DEVOLVER */}
-      {selectedSale.isActive && canAddReturns && !isZeroAmountSale && (
+      {selectedSale.isActive && canAddReturns && (
         <div
           className={`w-full border border-gray-800 rounded-2xl overflow-x-auto bg-[#121212] ${
             returnMode === 'product' ? '' : 'hidden'
@@ -641,7 +641,7 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
       )}
 
       {/* FORMULARIO DE MOTIVO Y CONFIRMACIÓN */}
-      {selectedSale.isActive && canAddReturns && !isFullyReturned && !isZeroAmountSale && (
+      {selectedSale.isActive && canAddReturns && !isFullyReturned && (
         <div className="bg-[#121212] border border-gray-800 rounded-2xl p-5 md:p-6 space-y-4">
           <div>
             <label className="text-xs font-extrabold uppercase tracking-wider text-gray-300 block mb-2">
@@ -684,7 +684,7 @@ export const ReturnsTicketDetail: React.FC<ReturnsTicketDetailProps> = ({
               </div>
               <div>
                 <span className="text-xs text-red-400 font-bold uppercase block">
-                  Total a Reembolsar al Cliente
+                  {isZeroAmountSale ? 'Total a Reembolsar en Caja ($0.00)' : 'Total a Reembolsar al Cliente'}
                 </span>
                 <span className="font-mono font-black text-2xl md:text-3xl text-red-400">
                   {formatCurrency(currentRefundSummary.totalRefund)}
