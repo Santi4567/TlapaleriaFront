@@ -6,7 +6,9 @@ import {
   ApiResponse, 
   PagedResponse,
   ExpiringProduct,
-  QuickPriceUpdateRequest
+  QuickPriceUpdateRequest,
+  LowStockReport,
+  UpdateStockLevelsRequest
 } from '../types/product';
 import { fetchWithAuth } from "../utils/fetchClient";
 
@@ -331,6 +333,82 @@ export const productService = {
       return {
         success: false,
         message: error.message || 'No se pudo conectar con el servidor para actualizar precios.',
+        data: null as any
+      };
+    }
+  },
+
+  // 12. OBTENER REPORTE DE RESURTIDO / PRODUCTOS BAJO MÍNIMO
+  async getLowStockReport(
+    token: string,
+    supplierId?: number,
+    search?: string
+  ): Promise<ApiResponse<LowStockReport> | null> {
+    try {
+      const params = new URLSearchParams();
+      if (supplierId && supplierId > 0) params.append('supplierId', supplierId.toString());
+      if (search && search.trim()) params.append('search', search.trim());
+
+      const qs = params.toString();
+      const url = `${API_URL}/low-stock-report${qs ? `?${qs}` : ''}`;
+      const response = await fetchWithAuth(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData.message || 'Error al obtener el reporte de stock bajo.',
+          data: null as any
+        };
+      }
+      return resData;
+    } catch (error: any) {
+      console.error('Error al obtener reporte de stock bajo:', error);
+      return {
+        success: false,
+        message: error.message || 'No se pudo conectar con el servidor.',
+        data: null as any
+      };
+    }
+  },
+
+  // 13. ACTUALIZAR STOCK MÍNIMO Y MÁXIMO (PATCH)
+  async updateStockLevels(
+    token: string,
+    id: number,
+    data: UpdateStockLevelsRequest
+  ): Promise<ApiResponse<Product> | null> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/${id}/stock-levels`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData.message || 'Error al actualizar los niveles de stock.',
+          data: null as any
+        };
+      }
+      return resData;
+    } catch (error: any) {
+      console.error(`Error al actualizar niveles de stock del producto ${id}:`, error);
+      return {
+        success: false,
+        message: error.message || 'No se pudo conectar con el servidor.',
         data: null as any
       };
     }

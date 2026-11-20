@@ -115,10 +115,29 @@ const ProductTable: React.FC<ProductTableProps> = ({
                       </span>
                     ) : (
                       <>
-                        <span className={`font-black text-xl ${product.currentStock === 0 && product.isActive ? 'text-red-500' : 'text-white'}`}>
+                        <span className={`font-black text-xl ${
+                          product.currentStock <= 0 && product.isActive
+                            ? 'text-red-500'
+                            : (product.minStock && product.minStock > 0 && product.currentStock <= product.minStock)
+                              ? 'text-amber-400'
+                              : 'text-white'
+                        }`}>
                           {product.currentStock}
                         </span> 
                         <span className="text-base text-gray-400 ml-1">{product.unitOfMeasure}</span>
+                        {product.currentStock <= 0 ? (
+                          <span className="block w-fit px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30 mt-0.5">
+                            Agotado
+                          </span>
+                        ) : (product.minStock && product.minStock > 0 && product.currentStock <= product.minStock) ? (
+                          <span className="block w-fit px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 mt-0.5" title={`Stock mínimo configurado: ${product.minStock}`}>
+                            Bajo mín. ({product.minStock})
+                          </span>
+                        ) : product.minStock && product.minStock > 0 ? (
+                          <span className="block text-[10px] text-gray-500 mt-0.5">
+                            Mín: {product.minStock}
+                          </span>
+                        ) : null}
                       </>
                     )}
                   </td>

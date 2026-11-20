@@ -56,6 +56,8 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
     isInventoryTracked: false,
     allowFractions: false,
     initialStock: "",
+    minStock: "",
+    maxStock: "",
     hasExpiration: false,
     nextExpirationDate: ''
   };
@@ -94,6 +96,8 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
         isInventoryTracked: productToEdit.isInventoryTracked,
         allowFractions: productToEdit.allowFractions || false,
         initialStock: productToEdit.currentStock || "",
+        minStock: productToEdit.minStock !== undefined && productToEdit.minStock !== null ? productToEdit.minStock : "",
+        maxStock: productToEdit.maxStock !== undefined && productToEdit.maxStock !== null ? productToEdit.maxStock : "",
         hasExpiration: productToEdit.hasExpiration,
         nextExpirationDate: formattedDate
       });
@@ -197,6 +201,10 @@ const ProductCreateForm: React.FC<ProductCreateFormProps> = ({ productToEdit, on
       unitOfMeasure: baseProduct.unitOfMeasure.trim().toUpperCase(),
       isInventoryTracked: baseProduct.isInventoryTracked,
       allowFractions: baseProduct.allowFractions,
+      minStock: Number(baseProduct.minStock || 0),
+      maxStock: baseProduct.maxStock !== "" && baseProduct.maxStock !== null && baseProduct.maxStock !== undefined
+        ? Number(baseProduct.maxStock)
+        : null,
       hasExpiration: baseProduct.hasExpiration,
       nextExpirationDate: baseProduct.hasExpiration && baseProduct.nextExpirationDate.length === 10
         ? new Date(baseProduct.nextExpirationDate).toISOString() 

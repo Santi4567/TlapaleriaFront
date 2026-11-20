@@ -9,7 +9,8 @@ import ProductReactivateView from '../components/products/ProductReactivateView'
 import { BrandManagementModal } from '../components/products/BrandManagementModal';
 import { QuickPriceModal } from '../components/products/QuickPriceModal';
 import { SlideOverlay } from '../components/common/SlideTransition';
-import { Tag } from 'lucide-react';
+import { Tag, AlertTriangle } from 'lucide-react';
+import { LowStockReportModal } from '../components/products/LowStockReportModal';
 
 const ProductsScreen: React.FC = () => {
   const { user } = useAuth();
@@ -37,6 +38,7 @@ const ProductsScreen: React.FC = () => {
   const [reactivatingProduct, setReactivatingProduct] = useState<any | null>(null);
   const [isBrandsModalOpen, setIsBrandsModalOpen] = useState(false);
   const [quickPriceProduct, setQuickPriceProduct] = useState<Product | null>(null);
+  const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
 
   const fetchProducts = async (term: string = '', activeState: boolean = isActiveFilter) => {
     if (!user?.token) return;
@@ -235,6 +237,15 @@ const ProductsScreen: React.FC = () => {
               </button>
 
               <button 
+                onClick={() => setIsLowStockModalOpen(true)}
+                className="bg-[#1a1a1a] hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/40 font-bold text-base px-5 py-3 rounded-xl transition-all shadow-md flex items-center justify-center whitespace-nowrap cursor-pointer gap-2"
+                title="Reporte de stock mínimo, agotados y sugerencias de pedido por proveedor"
+              >
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <span>Resurtido</span>
+              </button>
+
+              <button 
                 onClick={handleOpenCreateForm}
                 className="bg-brand-orange text-black font-bold text-lg px-6 py-3 rounded-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center whitespace-nowrap"
               >
@@ -300,6 +311,25 @@ const ProductsScreen: React.FC = () => {
           setSuccessMessage(`¡Precios de "${updated.name}" actualizados exitosamente!`);
           setTimeout(() => setSuccessMessage(null), 5000);
           fetchProducts(searchTerm, isActiveFilter);
+        }}
+      />
+
+      {/* MODAL DE REPORTE DE RESURTIDO Y STOCK BAJO */}
+      <LowStockReportModal
+        isOpen={isLowStockModalOpen}
+        onClose={() => {
+          setIsLowStockModalOpen(false);
+          fetchProducts(searchTerm, isActiveFilter);
+        }}
+        onOpenProductEdit={(productId) => {
+          const found = products.find(p => p.id === productId);
+          if (found) {
+            handleEditClick(found);
+          } else {
+            productService.getProductById(user?.token || '', productId).then(res => {
+              if (res && res.success) handleEditClick(res.data);
+            });
+          }
         }}
       />
     </div>

@@ -74,28 +74,82 @@ const InventoryAccordions: React.FC<InventoryAccordionsProps> = ({
         </div>
 
         {baseProduct.isInventoryTracked && (
-          <div className="mt-4 pt-4 border-t border-gray-800 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="w-full sm:w-64">
-              <label className="block text-xs text-gray-400 font-bold mb-1.5 uppercase">
-                {isEditing ? 'Stock Actual en Sistema' : 'Stock Inicial de Apertura'}
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                placeholder="Ej. 50"
-                disabled={isEditing}
-                onKeyDown={preventNegativeKey}
-                value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
-                onChange={e => handleInitialStockChange(e.target.value)}
-                className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl px-4 py-2.5 font-mono font-bold text-base focus:border-brand-orange focus:outline-none ${isEditing ? 'opacity-40 cursor-not-allowed bg-black/50' : ''}`}
-              />
+          <div className="mt-4 pt-4 border-t border-gray-800 animate-in slide-in-from-top-2 fade-in duration-200 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-gray-400 font-bold mb-1.5 uppercase">
+                  {isEditing ? 'Stock Actual' : 'Stock Inicial'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Ej. 50"
+                  disabled={isEditing}
+                  onKeyDown={preventNegativeKey}
+                  value={baseProduct.initialStock === "" ? "" : baseProduct.initialStock}
+                  onChange={e => handleInitialStockChange(e.target.value)}
+                  className={`w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl px-4 py-2.5 font-mono font-bold text-base focus:border-brand-orange focus:outline-none ${isEditing ? 'opacity-40 cursor-not-allowed bg-black/50' : ''}`}
+                />
+                {isEditing && (
+                  <p className="text-[10px] text-gray-500 italic mt-1">
+                    Modificable en Entradas/Salidas
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs text-amber-400 font-bold mb-1.5 uppercase flex items-center justify-between">
+                  <span>Stock Mínimo *</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Alerta</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Ej. 5 (0 = sin alerta)"
+                  onKeyDown={preventNegativeKey}
+                  value={baseProduct.minStock === "" ? "" : baseProduct.minStock}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setBaseProduct((prev: any) => ({
+                      ...prev,
+                      minStock: val === "" ? "" : Math.max(0, parseFloat(val) || 0)
+                    }));
+                  }}
+                  className="w-full bg-[#1a1a1a] border border-gray-700 focus:border-amber-400 text-white rounded-xl px-4 py-2.5 font-mono font-bold text-base focus:outline-none transition-colors"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Alerta cuando haya {baseProduct.minStock ? `≤ ${baseProduct.minStock}` : 'pocas'} unidades
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-emerald-400 font-bold mb-1.5 uppercase flex items-center justify-between">
+                  <span>Stock Máximo</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Objetivo</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Opcional (Ej. 20)"
+                  onKeyDown={preventNegativeKey}
+                  value={baseProduct.maxStock === "" ? "" : baseProduct.maxStock}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setBaseProduct((prev: any) => ({
+                      ...prev,
+                      maxStock: val === "" ? "" : Math.max(0, parseFloat(val) || 0)
+                    }));
+                  }}
+                  className="w-full bg-[#1a1a1a] border border-gray-700 focus:border-emerald-400 text-white rounded-xl px-4 py-2.5 font-mono font-bold text-base focus:outline-none transition-colors"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Cantidad a la que se busca resurtir
+                </p>
+              </div>
             </div>
-            {isEditing && (
-              <p className="text-xs text-gray-500 italic mt-4">
-                * El inventario actual sólo se modifica desde el módulo de Entradas / Salidas.
-              </p>
-            )}
           </div>
         )}
       </div>

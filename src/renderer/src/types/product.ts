@@ -38,12 +38,14 @@ export interface Product {
   lastOrderDate?: string | null;
   unitOfMeasure: string;
   currentStock: number;
+  minStock?: number;
+  maxStock?: number | null;
   reservedStock?: number;
   availableStock?: number;
   presentations: ProductPresentation[];
   isActive: boolean;
-  isInventoryTracked?: boolean; // <--  ¿Se controla stock?
-  allowFractions?: boolean;     // <--  ¿Permite decimales?
+  isInventoryTracked?: boolean; // <-- ¿Se controla stock?
+  allowFractions?: boolean;     // <-- ¿Permite decimales?
   hasExpiration: boolean;
   nextExpirationDate: string | null;
   createdAt: string;
@@ -86,6 +88,8 @@ export interface CreateProductRequest {
   isInventoryTracked: boolean;
   allowFractions: boolean;
   initialStock: number;
+  minStock?: number;
+  maxStock?: number | null;
   hasExpiration: boolean;
   nextExpirationDate?: string | null;
   presentations: CreatePresentationRequest[];
@@ -120,6 +124,8 @@ export interface UpdateProductRequest {
   allowFractions: boolean;
   hasExpiration: boolean;
   nextExpirationDate?: string | null;
+  minStock?: number;
+  maxStock?: number | null;
   // Nota: No se incluye initialStock ni currentStock por regla de negocio
   presentations: UpdatePresentationRequest[];
 }
@@ -161,6 +167,8 @@ export interface PagedResponse<T> {
 export interface StockUpdateNotification {
   productId: number;
   currentStock: number;
+  minStock?: number;
+  maxStock?: number | null;
   reservedStock: number;
   availableStock: number;
 }
@@ -172,6 +180,55 @@ export interface StockReservationResult {
   presentationId: number;
   requestedQuantity: number;
   currentStock: number;
+  minStock?: number;
+  maxStock?: number | null;
   reservedStock: number;
   availableStock: number;
+}
+
+// ==========================================
+// 6. STOCK MÍNIMO Y REPORTE DE RESURTIDO
+// ==========================================
+
+export interface UpdateStockLevelsRequest {
+  minStock: number;
+  maxStock?: number | null;
+}
+
+export interface LowStockItem {
+  productId: number;
+  internalCode: string;
+  name: string;
+  brand?: string | null;
+  location?: string | null;
+  unitOfMeasure: string;
+  allowFractions: boolean;
+  currentStock: number;
+  minStock: number;
+  maxStock?: number | null;
+  hasMinConfigured: boolean;
+  status: 'OutOfStock' | 'LowStock';
+  suggestedQuantity: number;
+  unitSupplierCost: number;
+  estimatedCost: number;
+  lastOrderDate?: string | null;
+}
+
+export interface LowStockSupplierGroup {
+  supplierId: number;
+  supplierName: string;
+  supplierContact?: string | null;
+  supplierPhone?: string | null;
+  productsCount: number;
+  estimatedCost: number;
+  items: LowStockItem[];
+}
+
+export interface LowStockReport {
+  totalProducts: number;
+  outOfStockCount: number;
+  lowStockCount: number;
+  productsWithoutMinCount: number;
+  totalEstimatedCost: number;
+  suppliers: LowStockSupplierGroup[];
 }

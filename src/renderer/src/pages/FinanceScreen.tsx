@@ -1,11 +1,16 @@
 // src/pages/FinanceScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wallet, Loader2, BarChart3, Truck } from 'lucide-react';
+import { Wallet, Loader2, BarChart3, Truck, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { financeService } from '../services/financeService';
 import { reportService } from '../services/reportService';
 import { FinancialReportData, FinancialReportPeriod } from '../types/finance';
-import { SupplierReportPeriod, SupplierSalesReportResponse } from '../types/report';
+import { 
+  SupplierReportPeriod, 
+  SupplierSalesReportResponse,
+  UserSalesReportPeriod,
+  UserSalesReportResponse
+} from '../types/report';
 import StatusAlert from '../components/StatusAlert';
 import FinanceSummaryCards from '../components/finance/FinanceSummaryCards';
 import FinanceChart from '../components/finance/FinanceChart';
@@ -13,8 +18,10 @@ import FinancePeriodSelector, { FinanceFilterParams } from '../components/financ
 import SupplierPeriodSelector, { SupplierFilterParams } from '../components/finance/SupplierPeriodSelector';
 import SupplierSalesSection from '../components/finance/SupplierSalesSection';
 import FinanceMovementsSection from '../components/finance/FinanceMovementsSection';
+import UserPeriodSelector, { UserFilterParams } from '../components/finance/UserPeriodSelector';
+import UserSalesSection from '../components/finance/UserSalesSection';
 
-type FinanceTab = 'general' | 'suppliers';
+type FinanceTab = 'general' | 'suppliers' | 'users';
 
 const FinanceScreen: React.FC = () => {
   const { user } = useAuth();
@@ -35,6 +42,13 @@ const FinanceScreen: React.FC = () => {
     periodType: SupplierReportPeriod.Day,
   });
 
+  // Estados de Ventas por Usuario / Cajero
+  const [userReportData, setUserReportData] = useState<UserSalesReportResponse | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userFilter, setUserFilter] = useState<UserFilterParams>({
+    periodType: UserSalesReportPeriod.Day,
+  });
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleGeneralFilterChange = useCallback((newFilter: FinanceFilterParams) => {
@@ -45,8 +59,14 @@ const FinanceScreen: React.FC = () => {
     setSupplierFilter(newFilter);
   }, []);
 
-  // Efecto para cargar el reporte general cuando cambia su filtro
+  const handleUserFilterChange = useCallback((newFilter: UserFilterParams) => {
+    setUserFilter(newFilter);
+  }, []);
+
+  // Efecto para cargar el reporte general cuando cambia su filtro o pestaña activa
   useEffect(() => {
+    if (activeTab !== 'general') return;
+
     const fetchGeneralReport = async () => {
       if (!user?.token) return;
       setIsLoadingGeneral(true);
@@ -68,10 +88,12 @@ const FinanceScreen: React.FC = () => {
     };
 
     fetchGeneralReport();
-  }, [generalFilter, user?.token]);
+  }, [generalFilter, user?.token, activeTab]);
 
-  // Efecto para cargar el reporte por proveedor cuando cambia su filtro
+  // Efecto para cargar el reporte por proveedor cuando cambia su filtro o pestaña activa
   useEffect(() => {
+    if (activeTab !== 'suppliers') return;
+
     const fetchSupplierReport = async () => {
       if (!user?.token) return;
       setIsLoadingSuppliers(true);
@@ -93,9 +115,39 @@ const FinanceScreen: React.FC = () => {
     };
 
     fetchSupplierReport();
-  }, [supplierFilter, user?.token]);
+  }, [supplierFilter, user?.token, activeTab]);
 
-  const isLoading = activeTab === 'general' ? isLoadingGeneral : isLoadingSuppliers;
+  // Efecto para cargar el reporte por usuario cuando cambia su filtro o pestaña activa
+  useEffect(() => {
+    if (activeTab !== 'users') return;
+
+    const fetchUserReport = async () => {
+      if (!user?.token) return;
+      setIsLoadingUsers(true);
+      setErrorMsg(null);
+
+      const response = await reportService.getUsersSalesReport(
+        user.token,
+        userFilter.periodType,
+        userFilter.startDate,
+        userFilter.endDate
+      );
+
+      if (response && response.success) {
+        setUserReportData(response.data);
+      } else {
+        setErrorMsg(response?.message || "No se pudo obtener el reporte de ventas por usuario.");
+      }
+      setIsLoadingUsers(false);
+    };
+
+    fetchUserReport();
+  }, [userFilter, user?.token, activeTab]);
+
+  const isLoading = 
+    activeTab === 'general' ? isLoadingGeneral : 
+    activeTab === 'suppliers' ? isLoadingSuppliers : 
+    isLoadingUsers;
 
   return (
     <div className="flex-1 w-full h-full bg-[#161616] rounded-3xl p-8 border border-gray-800 shadow-xl flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar relative">
@@ -122,11 +174,13 @@ const FinanceScreen: React.FC = () => {
             <p className="text-gray-400 text-lg mt-1">
               {activeTab === 'general'
                 ? 'Reporte de ventas netas, devoluciones y flujo de caja.'
-                : 'Separación de dinero por proveedor para reposición de mercancía.'}
+                : activeTab === 'suppliers'
+                ? 'Separación de dinero por proveedor para reposición de mercancía.'
+                : 'Auditoría y reporte de qué vendió cada usuario/cajero con desglose de productos y tickets.'}
             </p>
           </div>
 
-          {/* Switch de Pestañas: Flujo de Caja vs Corte por Proveedor */}
+          {/* Switch de Pestañas: Flujo de Caja vs Corte por Proveedor vs Ventas por Usuario */}
           <div className="flex items-center bg-[#1a1a1a] p-1.5 rounded-2xl border border-gray-800">
             <button
               type="button"
@@ -153,16 +207,32 @@ const FinanceScreen: React.FC = () => {
               <Truck className="w-4 h-4" />
               Corte por Proveedor
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                activeTab === 'users'
+                  ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Ventas por Usuario
+            </button>
           </div>
         </div>
 
-        {/* Ambos selectores permanecen montados y con espacio a la derecha para que no se corte el calendario */}
+        {/* Todos los selectores permanecen montados y con espacio a la derecha para que no se corte el calendario */}
         <div className="flex justify-end w-full pr-16">
           <div className={activeTab === 'general' ? 'block w-full xl:w-auto' : 'hidden'}>
             <FinancePeriodSelector onFilterChange={handleGeneralFilterChange} />
           </div>
           <div className={activeTab === 'suppliers' ? 'block w-full xl:w-auto' : 'hidden'}>
             <SupplierPeriodSelector onFilterChange={handleSupplierFilterChange} />
+          </div>
+          <div className={activeTab === 'users' ? 'block w-full xl:w-auto' : 'hidden'}>
+            <UserPeriodSelector onFilterChange={handleUserFilterChange} />
           </div>
         </div>
       </div>
@@ -199,6 +269,8 @@ const FinanceScreen: React.FC = () => {
           </div>
         ) : activeTab === 'suppliers' && supplierReportData ? (
           <SupplierSalesSection data={supplierReportData} filter={supplierFilter} />
+        ) : activeTab === 'users' && userReportData ? (
+          <UserSalesSection data={userReportData} filter={userFilter} />
         ) : null}
       </div>
 
